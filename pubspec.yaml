@@ -1,6 +1,6 @@
 name: oryksa
 description: Official Flutter SDK for ORYKSA AI Employees. A ready in-app AI chat with the look of the ORYKSA website chat, and a client for the ORYKSA API v1.
-version: 1.0.0
+version: 1.0.1
 homepage: https://developer.oryksa.com
 repository: https://github.com/oryksa/oryksa-flutter
 issue_tracker: https://github.com/oryksa/oryksa-flutter/issues

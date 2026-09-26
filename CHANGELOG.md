@@ -1,3 +1,7 @@
+## 1.0.1
+
+* README: about the author.
+
 ## 1.0.0
 
 * First release.
