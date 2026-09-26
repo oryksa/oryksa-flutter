@@ -1,0 +1,17 @@
+name: oryksa_example
+description: Minimal example of the ORYKSA chat in a Flutter app.
+publish_to: none
+version: 1.0.0
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ">=0.13.6 <2.0.0"
+  oryksa:
+    path: ../
+
+flutter:
+  uses-material-design: true
