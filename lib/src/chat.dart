@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'client.dart';
 import 'models.dart';
@@ -34,10 +35,10 @@ class OryksaChatTheme {
 }
 
 const Map<String, Map<String, String>> _tx = {
-  'en': {'talk': 'Talk to', 'ph': 'Type your question', 'send': 'Send', 'err': 'Sorry, something went wrong. Try again.', 'voice': 'Talk by voice'},
-  'pt': {'talk': 'Falar com', 'ph': 'Escreve a tua pergunta', 'send': 'Enviar', 'err': 'Desculpa, algo correu mal. Tenta de novo.', 'voice': 'Falar por voz'},
-  'br': {'talk': 'Falar com', 'ph': 'Digite sua pergunta', 'send': 'Enviar', 'err': 'Desculpe, algo deu errado. Tente de novo.', 'voice': 'Falar por voz'},
-  'es': {'talk': 'Hablar con', 'ph': 'Escribe tu pregunta', 'send': 'Enviar', 'err': 'Lo siento, algo salió mal. Inténtalo de nuevo.', 'voice': 'Hablar por voz'},
+  'en': {'talk': 'Talk to', 'ph': 'Type your question', 'send': 'Send', 'err': 'Sorry, something went wrong. Try again.', 'voice': 'Talk by voice', 'copy': 'Copy'},
+  'pt': {'talk': 'Falar com', 'ph': 'Escreve a tua pergunta', 'send': 'Enviar', 'err': 'Desculpa, algo correu mal. Tenta de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar'},
+  'br': {'talk': 'Falar com', 'ph': 'Digite sua pergunta', 'send': 'Enviar', 'err': 'Desculpe, algo deu errado. Tente de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar'},
+  'es': {'talk': 'Hablar con', 'ph': 'Escribe tu pregunta', 'send': 'Enviar', 'err': 'Lo siento, algo salió mal. Inténtalo de nuevo.', 'voice': 'Hablar por voz', 'copy': 'Copiar'},
 };
 
 String _lang(String l) => _tx.containsKey(l) ? l : 'en';
@@ -230,7 +231,7 @@ class _OryksaChatState extends State<OryksaChat> {
             itemBuilder: (_, i) {
               final m = _msgs[i];
               final mine = m.role == 'user';
-              return Align(
+              final bubble = Align(
                 alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .72),
@@ -256,6 +257,12 @@ class _OryksaChatState extends State<OryksaChat> {
                   ),
                 ),
               );
+              if (mine || m.role == 'typing' || m.text.trim().isEmpty) return bubble;
+              // Copy button under each reply of the AI (same as the ORYKSA apps and extension).
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                bubble,
+                _CopyButton(text: m.text.replaceAll('**', ''), label: _tx[_lang(widget.lang)]!['copy']!, color: th.muted),
+              ]);
             },
           ),
         ),
@@ -489,4 +496,37 @@ class _OryksaChatButtonState extends State<OryksaChatButton> {
       ),
     );
   }
+}
+
+/// Small copy button under a reply: copies the text and shows a check for a moment.
+class _CopyButton extends StatefulWidget {
+  const _CopyButton({required this.text, required this.label, required this.color});
+  final String text;
+  final String label;
+  final Color color;
+
+  @override
+  State<_CopyButton> createState() => _CopyButtonState();
+}
+
+class _CopyButtonState extends State<_CopyButton> {
+  bool _done = false;
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.text));
+    if (!mounted) return;
+    setState(() => _done = true);
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    if (mounted) setState(() => _done = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        onPressed: _copy,
+        tooltip: widget.label,
+        icon: Icon(_done ? Icons.check_rounded : Icons.content_copy_rounded, size: 16, color: widget.color),
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.all(4),
+        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+      );
 }
