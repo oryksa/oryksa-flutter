@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'client.dart';
 import 'models.dart';
+import 'profanity.dart';
 import 'voice.dart';
 import 'voice_screen.dart';
 
@@ -102,6 +103,10 @@ class _OryksaChatState extends State<OryksaChat> {
   }
 
   Future<void> _load() async {
+    // Swear words the customer types show as asterisks (one list for every ORYKSA chat).
+    OryksaProfanity.load(_lang(widget.lang)).then((_) {
+      if (mounted) setState(() {});
+    });
     try {
       final a = await widget.client.agent();
       if (!mounted) return;
@@ -243,7 +248,9 @@ class _OryksaChatState extends State<OryksaChat> {
                     child: Opacity(
                       opacity: m.role == 'typing' ? .6 : 1,
                       child: SelectableText.rich(
-                        TextSpan(children: oryksaBold(m.text, TextStyle(fontSize: 14, height: 1.5, color: mine ? Colors.white : th.ink))),
+                        TextSpan(
+                            children: oryksaBold(mine ? OryksaProfanity.mask(m.text, _lang(widget.lang)) : m.text,
+                                TextStyle(fontSize: 14, height: 1.5, color: mine ? Colors.white : th.ink))),
                       ),
                     ),
                   ),

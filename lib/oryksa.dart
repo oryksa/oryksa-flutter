@@ -18,6 +18,7 @@ export 'src/client.dart';
 export 'src/server.dart';
 export 'src/webhook.dart';
 export 'src/chat.dart';
+export 'src/profanity.dart';
 export 'src/voice.dart';
 export 'src/voice_screen.dart';
 export 'vad.dart';
