@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:oryksa/oryksa.dart';
+import 'package:oryksa/oryksa_server.dart';
 
 void main() {
   test('agent picks the language with fallbacks', () {

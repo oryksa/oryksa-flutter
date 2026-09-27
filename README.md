@@ -67,7 +67,11 @@ final history = await client.messages();
 
 ## On your Dart server (secret key)
 
+Server helpers are a separate library, **only for your backend**: never import it in the app. The app library (`package:oryksa/oryksa.dart`) serves your customers only and cannot change the AI or its Brain.
+
 ```dart
+import 'package:oryksa/oryksa_server.dart';
+
 final oryksa = Oryksa(Platform.environment['ORYKSA_API_KEY']!);
 
 // session token for one user (send only client_token to the app)
@@ -87,6 +91,8 @@ Servers in other languages can call the same API: see https://developer.oryksa.c
 ## Webhooks
 
 ```dart
+import 'package:oryksa/oryksa_server.dart';
+
 final event = verifyWebhook(rawBody, request.headers['oryksa-signature'], webhookSecret);
 ```
 
@@ -103,6 +109,7 @@ SDK oficial Flutter da **ORYKSA AI Employees**: põe na tua app um colaborador d
 1. O teu **servidor** guarda a chave secreta e cria um token de sessão para cada utilizador (`POST /v1/sessions`).
 2. A **app** usa só esse token: `OryksaClient(getToken: ...)` e `OryksaChatButton(client: client, lang: 'pt')`.
 3. Cada resposta da IA conta como uma interação do teu plano.
+4. As funções de servidor (chave secreta, alterar a IA e o Brain, webhooks) estão numa biblioteca à parte, `package:oryksa/oryksa_server.dart`, só para o teu servidor. Nunca a importes na app.
 
 ## Português (Brasil)
 
@@ -111,6 +118,7 @@ SDK oficial Flutter da **ORYKSA AI Employees**: coloque no seu app um colaborado
 1. Seu **servidor** guarda a chave secreta e cria um token de sessão para cada usuário (`POST /v1/sessions`).
 2. O **app** usa só esse token: `OryksaClient(getToken: ...)` e `OryksaChatButton(client: client, lang: 'br')`.
 3. Cada resposta da IA conta como uma interação do seu plano.
+4. As funções de servidor (chave secreta, alterar a IA e o Brain, webhooks) ficam numa biblioteca separada, `package:oryksa/oryksa_server.dart`, só para o seu servidor. Nunca a importe no app.
 
 ## Español
 
@@ -119,6 +127,7 @@ SDK oficial de Flutter de **ORYKSA AI Employees**: pon en tu app un empleado de 
 1. Tu **servidor** guarda la clave secreta y crea un token de sesión para cada usuario (`POST /v1/sessions`).
 2. La **app** usa solo ese token: `OryksaClient(getToken: ...)` y `OryksaChatButton(client: client, lang: 'es')`.
 3. Cada respuesta de la IA cuenta como una interacción de tu plan.
+4. Las funciones de servidor (clave secreta, cambiar la IA y el Brain, webhooks) están en una biblioteca aparte, `package:oryksa/oryksa_server.dart`, solo para tu servidor. Nunca la importes en la app.
 
 ## About the author
 

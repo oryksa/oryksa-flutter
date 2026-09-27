@@ -7,6 +7,7 @@
 * The agent includes `photo` (the AI photo from Your AI), `voice` and `language`.
 * Bold text (`**`) in the chat bubbles.
 * The SDK serves the customers of the business only: it is never an interface for the owner.
+* **Breaking:** the server helpers moved out of the app library. `Oryksa` (secret API key: `createSession`, `updateAgent`, `setPages`, `addFaq`, `learnApp`) and `verifyWebhook` are now in `package:oryksa/oryksa_server.dart`, only for the subscriber's backend. A Flutter app that imports `package:oryksa/oryksa.dart` can no longer change the AI or its Brain.
 * Needs the microphone permission for voice: Android `RECORD_AUDIO`, iOS `NSMicrophoneUsageDescription`.
 
 ## 1.0.1
