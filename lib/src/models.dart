@@ -10,6 +10,8 @@ class OryksaAgent {
     this.suggestions = const {},
     this.voiceReplies = false,
     this.conversationId,
+    this.voice,
+    this.language,
   });
 
   /// Reads the `GET /v1/client/agent` response.
@@ -28,14 +30,25 @@ class OryksaAgent {
       suggestions: list(j['suggestions']),
       voiceReplies: j['voice_replies'] == true,
       conversationId: j['conversation_id']?.toString(),
+      voice: j['voice']?.toString(),
+      language: j['language']?.toString(),
     );
   }
 
   /// Name of the AI employee (from "Your AI" in ORYKSA).
   final String name;
 
-  /// Photo of the AI employee (from "Your AI" in ORYKSA).
+  /// Photo of the AI employee (from "Your AI" in ORYKSA, never the owner's photo).
   final String avatar;
+
+  /// Same as [avatar].
+  String get photo => avatar;
+
+  /// ElevenLabs voice chosen for the AI in ORYKSA (the server speaks with it).
+  final String? voice;
+
+  /// Main language of the AI (`pt`, `en`, `es`...), from ORYKSA.
+  final String? language;
 
   /// Business name.
   final String? business;
@@ -79,13 +92,15 @@ class OryksaMessage {
 /// Answer of `send`: `replied` with the text, or `pending` while the AI is still writing.
 class OryksaReply {
   /// Creates a reply.
-  const OryksaReply({required this.status, this.reply, this.conversationId});
+  const OryksaReply({required this.status, this.reply, this.conversationId, this.speech, this.whisper = false});
 
   /// Reads a `chat_reply` object.
   factory OryksaReply.fromJson(Map<String, dynamic> j) => OryksaReply(
         status: (j['status'] ?? 'replied').toString(),
         reply: j['reply']?.toString(),
         conversationId: j['conversation_id']?.toString(),
+        speech: j['speech']?.toString(),
+        whisper: j['whisper'] == true,
       );
 
   /// `replied` or `pending`.
@@ -96,4 +111,34 @@ class OryksaReply {
 
   /// Conversation id.
   final String? conversationId;
+
+  /// With `voice: true`: the short spoken version of [reply] (1-2 sentences, no markdown).
+  /// The whole [reply] stays in the chat.
+  final String? speech;
+
+  /// The customer whispered: speak [speech] whispered.
+  final bool whisper;
+}
+
+/// Where the customer is inside your app. Sent with each message so the AI knows
+/// the current screen (for example a product page) and answers about it.
+class OryksaAppContext {
+  /// Creates an app context.
+  const OryksaAppContext({this.screen, this.title, this.items = const []});
+
+  /// Screen id, for example `product`, `cart`, `booking`.
+  final String? screen;
+
+  /// Title shown on the screen, for example the product name and price.
+  final String? title;
+
+  /// What is listed on the screen (product names, services, times). Up to 20.
+  final List<String> items;
+
+  /// JSON sent to the API.
+  Map<String, dynamic> toJson() => {
+        if (screen != null) 'screen': screen,
+        if (title != null) 'title': title,
+        if (items.isNotEmpty) 'items': items.take(20).toList(),
+      };
 }

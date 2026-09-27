@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:http/http.dart' as http;
 
 import 'errors.dart';
@@ -64,20 +66,103 @@ class OryksaClient {
 
   /// Sends a message. The status is `pending` when the AI needs a few more seconds:
   /// use [sendAndWait] to wait for the text.
-  Future<OryksaReply> send(String message) async =>
-      OryksaReply.fromJson(await _req('POST', '/client/chat', {'message': message}));
+  ///
+  /// * [appContext]: the screen the customer is on inside your app, so the AI answers about it.
+  /// * [voice]: the reply will be heard; it also carries a short [OryksaReply.speech].
+  /// * [whisper]: the customer whispered; the spoken reply is shorter and whispered.
+  /// * [voiceStats]: audio numbers of this voice turn (sent by the voice screen).
+  Future<OryksaReply> send(
+    String message, {
+    OryksaAppContext? appContext,
+    bool voice = false,
+    bool whisper = false,
+    Map<String, dynamic>? voiceStats,
+  }) async =>
+      OryksaReply.fromJson(await _req('POST', '/client/chat', {
+        'message': message,
+        if (appContext != null) 'app_context': appContext.toJson(),
+        if (voice) 'voice': true,
+        if (whisper) 'whisper': true,
+        if (voiceStats != null) ...{'platform': 'flutter', 'voice_stats': voiceStats},
+      }));
 
   /// Sends a message and waits for the reply text (up to [maxWait]).
-  Future<String?> sendAndWait(String message, {Duration maxWait = const Duration(seconds: 40)}) async {
-    var r = await send(message);
-    if (r.status != 'pending') return r.reply;
+  Future<String?> sendAndWait(
+    String message, {
+    Duration maxWait = const Duration(seconds: 40),
+    OryksaAppContext? appContext,
+  }) async =>
+      (await sendAndWaitReply(message, maxWait: maxWait, appContext: appContext)).reply;
+
+  /// Like [sendAndWait], but returns the whole [OryksaReply] (with [OryksaReply.speech] when [voice] is on).
+  Future<OryksaReply> sendAndWaitReply(
+    String message, {
+    Duration maxWait = const Duration(seconds: 40),
+    OryksaAppContext? appContext,
+    bool voice = false,
+    bool whisper = false,
+    Map<String, dynamic>? voiceStats,
+  }) async {
+    final r = await send(message, appContext: appContext, voice: voice, whisper: whisper, voiceStats: voiceStats);
+    if (r.status != 'pending') return r;
     final end = DateTime.now().add(maxWait);
     while (DateTime.now().isBefore(end)) {
       await Future<void>.delayed(const Duration(milliseconds: 1500));
       final hist = await messages();
-      if (hist.isNotEmpty && hist.last.role == 'assistant') return hist.last.content;
+      if (hist.isNotEmpty && hist.last.role == 'assistant') {
+        return OryksaReply(status: 'replied', reply: hist.last.content, conversationId: r.conversationId, whisper: whisper);
+      }
     }
-    return r.reply;
+    return r;
+  }
+
+  /// The AI's voice (ElevenLabs, the voice chosen in ORYKSA) for one reply of this
+  /// conversation, as MP3 bytes. Returns null when the voice is not available: then
+  /// show the text only (never a robot voice).
+  Future<Uint8List?> tts(String text, {bool whisper = false}) async {
+    try {
+      try {
+        return await oryksaBytes(_http, _base, await _tok(false), '/client/tts', {'text': text, if (whisper) 'whisper': true},
+            timeout: timeout);
+      } on OryksaException catch (e) {
+        if ((e.code == 'session_expired' || e.status == 401) && _getToken != null) {
+          return await oryksaBytes(_http, _base, await _tok(true), '/client/tts', {'text': text, if (whisper) 'whisper': true},
+              timeout: timeout);
+        }
+        rethrow;
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Turns the customer's voice into text. [wav] is 16 kHz mono PCM16 WAV, up to 15 seconds.
+  /// Returns `''` when nothing was said and null when it failed.
+  Future<String?> transcribe(Uint8List wav) async {
+    try {
+      Map<String, dynamic> d;
+      try {
+        d = await oryksaUpload(_http, _base, await _tok(false), '/client/transcribe', wav, 'voice.wav', 'audio/wav',
+            timeout: timeout);
+      } on OryksaException catch (e) {
+        if ((e.code == 'session_expired' || e.status == 401) && _getToken != null) {
+          d = await oryksaUpload(_http, _base, await _tok(true), '/client/transcribe', wav, 'voice.wav', 'audio/wav',
+              timeout: timeout);
+        } else {
+          rethrow;
+        }
+      }
+      return (d['text'] ?? '').toString().trim();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Reports a voice turn that produced no message (nothing heard, a cut with nothing said).
+  Future<void> voiceStats(Map<String, dynamic> stats) async {
+    try {
+      await _req('POST', '/client/voice-stats', {'platform': 'flutter', 'voice_stats': stats});
+    } catch (_) {}
   }
 
   /// Messages of this conversation.
