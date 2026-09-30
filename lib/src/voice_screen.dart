@@ -146,7 +146,8 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
       case OryksaVoicePhase.hearing:
         return (t['listening']!, t['hearing']!);
       case OryksaVoicePhase.thinking:
-        return (c.lastHeard.isNotEmpty ? c.lastHeard : '...', t['thinking']!);
+        // Never the words the person said on screen: only "listening" in the interface language; her answer shows as text.
+        return (t['listening']!, t['thinking']!);
       case OryksaVoicePhase.speaking:
         return (widget.agent.name, c.lastReply);
       case OryksaVoicePhase.muted:

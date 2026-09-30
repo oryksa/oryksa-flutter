@@ -8,7 +8,7 @@ import 'package:http_parser/http_parser.dart';
 import 'errors.dart';
 
 /// SDK version sent in the `X-ORYKSA-SDK` header.
-const String oryksaSdkVersion = '1.1.0';
+const String oryksaSdkVersion = '1.1.1';
 
 /// Default API base.
 const String oryksaDefaultBase = 'https://api.oryksa.com/v1';
