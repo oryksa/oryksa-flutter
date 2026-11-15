@@ -7,6 +7,47 @@ Official Flutter SDK for **ORYKSA AI Employees**. Put an AI employee that alread
 * Docs: https://developer.oryksa.com/en/sdks
 * API: `https://api.oryksa.com/v1`
 
+**Read in:** English (this page), or open your language:
+
+<details>
+<summary><b>Português (Portugal)</b></summary>
+
+SDK oficial Flutter da **ORYKSA AI Employees**: põe na tua app um colaborador de IA que já conhece o teu negócio, com um chat pronto igual ao chat do site da ORYKSA, com o nome e a foto da tua IA.
+
+1. O teu **servidor** guarda a chave secreta e cria um token de sessão para cada utilizador (`POST /v1/sessions`).
+2. A **app** usa só esse token: `OryksaClient(getToken: ...)` e `OryksaChatButton(client: client, lang: 'pt')`.
+3. **Bolinha na barra de separadores (1.2):** troca o teu `NavigationBar` por `OryksaBottomBar(client: client, ...)` e a foto da tua IA fica no meio da barra. Ao tocar abre o chat com voz: ecrã inteiro no telemóvel, painel lateral em ecrãs largos. Numa barra tua, usa `OryksaTabBubble(client: client)`.
+4. Cada resposta da IA conta como uma interação do teu plano.
+5. As funções de servidor (chave secreta, alterar a IA e o Brain, webhooks) estão numa biblioteca à parte, `package:oryksa/oryksa_server.dart`, só para o teu servidor. Nunca a importes na app.
+
+</details>
+
+<details>
+<summary><b>Português (Brasil)</b></summary>
+
+SDK oficial Flutter da **ORYKSA AI Employees**: coloque no seu app um colaborador de IA que já conhece o seu negócio, com um chat pronto igual ao chat do site da ORYKSA, com o nome e a foto da sua IA.
+
+1. Seu **servidor** guarda a chave secreta e cria um token de sessão para cada usuário (`POST /v1/sessions`).
+2. O **app** usa só esse token: `OryksaClient(getToken: ...)` e `OryksaChatButton(client: client, lang: 'br')`.
+3. **Bolinha na barra de abas (1.2):** troque seu `NavigationBar` por `OryksaBottomBar(client: client, ...)` e a foto da sua IA fica no meio da barra. Ao tocar, abre o chat com voz: tela cheia no celular, painel lateral em telas largas. Numa barra sua, use `OryksaTabBubble(client: client)`.
+4. Cada resposta da IA conta como uma interação do seu plano.
+5. As funções de servidor (chave secreta, alterar a IA e o Brain, webhooks) ficam numa biblioteca separada, `package:oryksa/oryksa_server.dart`, só para o seu servidor. Nunca a importe no app.
+
+</details>
+
+<details>
+<summary><b>Español</b></summary>
+
+SDK oficial de Flutter de **ORYKSA AI Employees**: pon en tu app un empleado de IA que ya conoce tu negocio, con un chat listo igual al chat de la web de ORYKSA, con el nombre y la foto de tu IA.
+
+1. Tu **servidor** guarda la clave secreta y crea un token de sesión para cada usuario (`POST /v1/sessions`).
+2. La **app** usa solo ese token: `OryksaClient(getToken: ...)` y `OryksaChatButton(client: client, lang: 'es')`.
+3. **Burbuja en la barra de pestañas (1.2):** cambia tu `NavigationBar` por `OryksaBottomBar(client: client, ...)` y la foto de tu IA queda en el centro de la barra. Al tocarla se abre el chat con voz: pantalla completa en el móvil, panel lateral en pantallas anchas. En una barra propia, usa `OryksaTabBubble(client: client)`.
+4. Cada respuesta de la IA cuenta como una interacción de tu plan.
+5. Las funciones de servidor (clave secreta, cambiar la IA y el Brain, webhooks) están en una biblioteca aparte, `package:oryksa/oryksa_server.dart`, solo para tu servidor. Nunca la importes en la app.
+
+</details>
+
 ## Install
 
 ```bash
@@ -143,36 +184,6 @@ final event = verifyWebhook(rawBody, request.headers['oryksa-signature'], webhoo
 Every failed call throws `OryksaException` with `status`, `code` (for example `interaction_limit_reached`, `rate_limited`, `plan_required`) and `message`.
 
 ---
-
-## Português (Portugal)
-
-SDK oficial Flutter da **ORYKSA AI Employees**: põe na tua app um colaborador de IA que já conhece o teu negócio, com um chat pronto igual ao chat do site da ORYKSA, com o nome e a foto da tua IA.
-
-1. O teu **servidor** guarda a chave secreta e cria um token de sessão para cada utilizador (`POST /v1/sessions`).
-2. A **app** usa só esse token: `OryksaClient(getToken: ...)` e `OryksaChatButton(client: client, lang: 'pt')`.
-3. **Bolinha na barra de separadores (1.2):** troca o teu `NavigationBar` por `OryksaBottomBar(client: client, ...)` e a foto da tua IA fica no meio da barra. Ao tocar abre o chat com voz: ecrã inteiro no telemóvel, painel lateral em ecrãs largos. Numa barra tua, usa `OryksaTabBubble(client: client)`.
-4. Cada resposta da IA conta como uma interação do teu plano.
-5. As funções de servidor (chave secreta, alterar a IA e o Brain, webhooks) estão numa biblioteca à parte, `package:oryksa/oryksa_server.dart`, só para o teu servidor. Nunca a importes na app.
-
-## Português (Brasil)
-
-SDK oficial Flutter da **ORYKSA AI Employees**: coloque no seu app um colaborador de IA que já conhece o seu negócio, com um chat pronto igual ao chat do site da ORYKSA, com o nome e a foto da sua IA.
-
-1. Seu **servidor** guarda a chave secreta e cria um token de sessão para cada usuário (`POST /v1/sessions`).
-2. O **app** usa só esse token: `OryksaClient(getToken: ...)` e `OryksaChatButton(client: client, lang: 'br')`.
-3. **Bolinha na barra de abas (1.2):** troque seu `NavigationBar` por `OryksaBottomBar(client: client, ...)` e a foto da sua IA fica no meio da barra. Ao tocar, abre o chat com voz: tela cheia no celular, painel lateral em telas largas. Numa barra sua, use `OryksaTabBubble(client: client)`.
-4. Cada resposta da IA conta como uma interação do seu plano.
-5. As funções de servidor (chave secreta, alterar a IA e o Brain, webhooks) ficam numa biblioteca separada, `package:oryksa/oryksa_server.dart`, só para o seu servidor. Nunca a importe no app.
-
-## Español
-
-SDK oficial de Flutter de **ORYKSA AI Employees**: pon en tu app un empleado de IA que ya conoce tu negocio, con un chat listo igual al chat de la web de ORYKSA, con el nombre y la foto de tu IA.
-
-1. Tu **servidor** guarda la clave secreta y crea un token de sesión para cada usuario (`POST /v1/sessions`).
-2. La **app** usa solo ese token: `OryksaClient(getToken: ...)` y `OryksaChatButton(client: client, lang: 'es')`.
-3. **Burbuja en la barra de pestañas (1.2):** cambia tu `NavigationBar` por `OryksaBottomBar(client: client, ...)` y la foto de tu IA queda en el centro de la barra. Al tocarla se abre el chat con voz: pantalla completa en el móvil, panel lateral en pantallas anchas. En una barra propia, usa `OryksaTabBubble(client: client)`.
-4. Cada respuesta de la IA cuenta como una interacción de tu plan.
-5. Las funciones de servidor (clave secreta, cambiar la IA y el Brain, webhooks) están en una biblioteca aparte, `package:oryksa/oryksa_server.dart`, solo para tu servidor. Nunca la importes en la app.
 
 ## About the author
 
