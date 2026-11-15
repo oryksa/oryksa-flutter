@@ -10,6 +10,8 @@
 * Right-to-left safe chat bubbles and paddings.
 * Example app: four tabs with the bubble in the middle, the language of the phone, light and dark, two columns on tablets.
 * Server side: `createSession` takes `customerEmail` and `customerPhone`. For a user signed in to your app, the AI asks for no contact details and never tells them to register or sign in.
+* Apps without a server of their own: `OryksaClient.public(chatToken: ...)` opens the chat with the business's public chat token (the one the website chat uses); no secret key, and the conversation is kept apart from the ones a server creates.
+* Photos: `OryksaImage` and `send(..., image:)`; `onPickImage` on the chat, the bubble and the bar shows a camera button (bring your own picker, for example `image_picker`). The AI looks at the photo and answers about it.
 * Needs Flutter 3.27 or newer (the SDK already used APIs from it).
 
 ## 1.1.1

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -29,6 +31,56 @@ class OryksaClient {
     if (token != null && token.startsWith('oryk_live_')) {
       throw ArgumentError('Never use the secret API key in an app. Use a session token (oryk_cs_...).');
     }
+  }
+
+  /// For apps WITHOUT a server of their own: the client takes its session token from the
+  /// business's PUBLIC chat token (ORYKSA > Connectors > Website chat, the same token the
+  /// website chat uses). No secret key is involved, and the conversation is kept apart from
+  /// the ones your server creates. Pass a random [conversationId] saved on the device
+  /// (a UUID) to keep the history between app launches.
+  ///
+  /// When the business limits the chat to its own domains, use [OryksaClient.new] with a
+  /// token from your server instead.
+  factory OryksaClient.public({
+    required String chatToken,
+    String? conversationId,
+    String? customerName,
+    String baseUrl = oryksaDefaultBase,
+    http.Client? httpClient,
+    Duration timeout = const Duration(seconds: 60),
+  }) {
+    final base = baseUrl.replaceAll(RegExp(r'/$'), '');
+    final hc = httpClient ?? http.Client();
+    final conv = conversationId ?? _randomId();
+    Future<String> fetch() async {
+      final r = await hc
+          .post(Uri.parse('$base/public/sessions'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'widget_token': chatToken,
+                'conversation_id': conv,
+                if (customerName != null && customerName.isNotEmpty) 'customer_name': customerName,
+              }))
+          .timeout(timeout);
+      Map<String, dynamic> j = const {};
+      try {
+        j = (jsonDecode(utf8.decode(r.bodyBytes)) as Map).cast<String, dynamic>();
+      } catch (_) {}
+      final t = j['client_token'];
+      if (r.statusCode != 201 || t is! String || t.isEmpty) {
+        final e = (j['error'] is Map) ? (j['error'] as Map) : const {};
+        throw OryksaException(r.statusCode, (e['code'] ?? 'public_session_failed').toString(),
+            (e['message'] ?? 'Could not open the chat.').toString());
+      }
+      return t;
+    }
+
+    return OryksaClient(getToken: fetch, baseUrl: base, httpClient: hc, timeout: timeout);
+  }
+
+  static String _randomId() {
+    final r = Random.secure();
+    return List.generate(24, (_) => '0123456789abcdef'[r.nextInt(16)]).join();
   }
 
   String? _token;
@@ -64,7 +116,8 @@ class OryksaClient {
   /// Name, photo, greeting and suggestions of the AI employee.
   Future<OryksaAgent> agent() async => OryksaAgent.fromJson(await _req('GET', '/client/agent'));
 
-  /// Sends a message. The status is `pending` when the AI needs a few more seconds:
+  /// Sends a message ([image]: a photo from the customer, the AI looks at it). The status is
+  /// `pending` when the AI needs a few more seconds:
   /// use [sendAndWait] to wait for the text.
   ///
   /// * [appContext]: the screen the customer is on inside your app, so the AI answers about it.
@@ -80,9 +133,11 @@ class OryksaClient {
     bool whisper = false,
     Map<String, dynamic>? voiceStats,
     String? lang,
+    OryksaImage? image,
   }) async =>
       OryksaReply.fromJson(await _req('POST', '/client/chat', {
         'message': message,
+        if (image != null) ...{'image_base64': base64Encode(image.bytes), 'image_mime': image.mime},
         if (lang != null && lang.isNotEmpty) 'lang': lang,
         if (appContext != null) 'app_context': appContext.toJson(),
         if (voice) 'voice': true,
@@ -96,8 +151,9 @@ class OryksaClient {
     Duration maxWait = const Duration(seconds: 40),
     OryksaAppContext? appContext,
     String? lang,
+    OryksaImage? image,
   }) async =>
-      (await sendAndWaitReply(message, maxWait: maxWait, appContext: appContext, lang: lang)).reply;
+      (await sendAndWaitReply(message, maxWait: maxWait, appContext: appContext, lang: lang, image: image)).reply;
 
   /// Like [sendAndWait], but returns the whole [OryksaReply] (with [OryksaReply.speech] when [voice] is on).
   Future<OryksaReply> sendAndWaitReply(
@@ -108,8 +164,10 @@ class OryksaClient {
     bool whisper = false,
     Map<String, dynamic>? voiceStats,
     String? lang,
+    OryksaImage? image,
   }) async {
-    final r = await send(message, appContext: appContext, voice: voice, whisper: whisper, voiceStats: voiceStats, lang: lang);
+    final r = await send(message,
+        appContext: appContext, voice: voice, whisper: whisper, voiceStats: voiceStats, lang: lang, image: image);
     if (r.status != 'pending') return r;
     final end = DateTime.now().add(maxWait);
     while (DateTime.now().isBefore(end)) {

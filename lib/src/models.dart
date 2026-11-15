@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// Public look of the AI employee (the same data the ORYKSA website chat shows).
 class OryksaAgent {
   /// Creates an agent description.
@@ -141,4 +143,18 @@ class OryksaAppContext {
         if (title != null) 'title': title,
         if (items.isNotEmpty) 'items': items.take(20).toList(),
       };
+}
+
+
+/// A photo the customer picked in your app (for example with the `image_picker` package).
+/// The AI looks at it and answers about it, as in the ORYKSA website chat.
+class OryksaImage {
+  /// Creates a photo from its bytes (JPEG, PNG or WebP, up to about 2 MB).
+  const OryksaImage(this.bytes, {this.mime = 'image/jpeg'});
+
+  /// The image bytes.
+  final Uint8List bytes;
+
+  /// `image/jpeg`, `image/png` or `image/webp`.
+  final String mime;
 }

@@ -59,10 +59,10 @@ class OryksaChatTheme {
 }
 
 const Map<String, Map<String, String>> _tx = {
-  'en': {'talk': 'Talk to', 'ph': 'Type your question', 'send': 'Send', 'err': 'Sorry, something went wrong. Try again.', 'voice': 'Talk by voice', 'copy': 'Copy', 'unread': 'new message'},
-  'pt': {'talk': 'Falar com', 'ph': 'Escreve a tua pergunta', 'send': 'Enviar', 'err': 'Desculpa, algo correu mal. Tenta de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem'},
-  'br': {'talk': 'Falar com', 'ph': 'Digite sua pergunta', 'send': 'Enviar', 'err': 'Desculpe, algo deu errado. Tente de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem'},
-  'es': {'talk': 'Hablar con', 'ph': 'Escribe tu pregunta', 'send': 'Enviar', 'err': 'Lo siento, algo salió mal. Inténtalo de nuevo.', 'voice': 'Hablar por voz', 'copy': 'Copiar', 'unread': 'mensaje nuevo'},
+  'en': {'talk': 'Talk to', 'ph': 'Type your question', 'send': 'Send', 'err': 'Sorry, something went wrong. Try again.', 'voice': 'Talk by voice', 'copy': 'Copy', 'unread': 'new message', 'photo': 'Send a photo'},
+  'pt': {'talk': 'Falar com', 'ph': 'Escreve a tua pergunta', 'send': 'Enviar', 'err': 'Desculpa, algo correu mal. Tenta de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem', 'photo': 'Enviar uma foto'},
+  'br': {'talk': 'Falar com', 'ph': 'Digite sua pergunta', 'send': 'Enviar', 'err': 'Desculpe, algo deu errado. Tente de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem', 'photo': 'Enviar uma foto'},
+  'es': {'talk': 'Hablar con', 'ph': 'Escribe tu pregunta', 'send': 'Enviar', 'err': 'Lo siento, algo salió mal. Inténtalo de nuevo.', 'voice': 'Hablar por voz', 'copy': 'Copiar', 'unread': 'mensaje nuevo', 'photo': 'Enviar una foto'},
 };
 
 /// The SDK language for a language code or locale tag: `en`, `pt`, `br` (Portuguese
@@ -100,6 +100,7 @@ class OryksaChat extends StatefulWidget {
     this.onClose,
     this.appContext,
     this.voice = true,
+    this.onPickImage,
   });
 
   /// Client with the session token.
@@ -112,6 +113,10 @@ class OryksaChat extends StatefulWidget {
   /// Shows the microphone button (voice conversation) when the plan has voice.
   /// Needs the microphone permission in the app (see the README).
   final bool voice;
+
+  /// Shows a photo button in the chat. Return the photo the customer picked (for example
+  /// with the `image_picker` package), or null when they cancel. The AI looks at the photo.
+  final Future<OryksaImage?> Function()? onPickImage;
 
   /// `en`, `pt`, `br` or `es` (locale tags such as `pt-BR` or `es-ES` work too).
   final String lang;
@@ -127,9 +132,10 @@ class OryksaChat extends StatefulWidget {
 }
 
 class _Msg {
-  _Msg(this.role, this.text);
+  _Msg(this.role, this.text, [this.image]);
   final String role; // user | assistant | typing
   final String text;
+  final Uint8List? image;
 }
 
 class _OryksaChatState extends State<OryksaChat> {
@@ -182,20 +188,33 @@ class _OryksaChatState extends State<OryksaChat> {
     });
   }
 
-  Future<void> _send(String text) async {
+  Future<void> _pickAndSend() async {
+    final pick = widget.onPickImage;
+    if (pick == null || _busy) return;
+    OryksaImage? img;
+    try {
+      img = await pick();
+    } catch (_) {
+      img = null;
+    }
+    if (img == null || !mounted) return;
+    await _send(_input.text, image: img);
+  }
+
+  Future<void> _send(String text, {OryksaImage? image}) async {
     text = text.trim();
-    if (text.isEmpty || _busy) return;
+    if ((text.isEmpty && image == null) || _busy) return;
     setState(() {
       _busy = true;
       _sug = [];
-      _msgs.add(_Msg('user', text));
+      _msgs.add(_Msg('user', text, image?.bytes));
       _msgs.add(_Msg('typing', '...'));
       _input.clear();
     });
     _toEnd();
     String? reply;
     try {
-      reply = await widget.client.sendAndWait(text, appContext: widget.appContext?.call(), lang: _lang(widget.lang));
+      reply = await widget.client.sendAndWait(text, appContext: widget.appContext?.call(), lang: _lang(widget.lang), image: image);
     } catch (_) {
       reply = null;
     }
@@ -294,11 +313,22 @@ class _OryksaChatState extends State<OryksaChat> {
                     ),
                     child: Opacity(
                       opacity: m.role == 'typing' ? .6 : 1,
-                      child: SelectableText.rich(
-                        TextSpan(
-                            children: oryksaBold(mine ? OryksaProfanity.mask(m.text, _lang(widget.lang)) : m.text,
-                                TextStyle(fontSize: 14, height: 1.5, color: mine ? Colors.white : th.ink))),
-                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                        if (m.image != null)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: m.text.isEmpty ? 0 : 8),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.memory(m.image!, height: 160, fit: BoxFit.cover, semanticLabel: t['photo']),
+                            ),
+                          ),
+                        if (m.text.isNotEmpty)
+                          SelectableText.rich(
+                            TextSpan(
+                                children: oryksaBold(mine ? OryksaProfanity.mask(m.text, _lang(widget.lang)) : m.text,
+                                    TextStyle(fontSize: 14, height: 1.5, color: mine ? Colors.white : th.ink))),
+                          ),
+                      ]),
                     ),
                   ),
                 ),
@@ -350,6 +380,12 @@ class _OryksaChatState extends State<OryksaChat> {
                 ),
               ),
             ),
+            if (widget.onPickImage != null)
+              IconButton(
+                onPressed: _busy ? null : _pickAndSend,
+                tooltip: t['photo'],
+                icon: Icon(Icons.photo_camera_outlined, color: th.accent),
+              ),
             if (widget.voice && (a?.voiceReplies ?? false) && _input.text.trim().isEmpty)
               IconButton(
                 onPressed: _busy ? null : _openVoice,
@@ -425,6 +461,7 @@ Future<void> showOryksaChat(
   bool alignLeft = false,
   OryksaAppContext? Function()? appContext,
   bool voice = true,
+  Future<OryksaImage?> Function()? onPickImage,
 }) {
   final wide = MediaQuery.of(context).size.width >= 600;
   if (!wide) {
@@ -438,7 +475,7 @@ Future<void> showOryksaChat(
         height: MediaQuery.of(ctx).size.height * .88,
         child: Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: OryksaChat(client: client, lang: lang, theme: theme, appContext: appContext, voice: voice, onClose: () => Navigator.of(ctx).pop()),
+          child: OryksaChat(client: client, lang: lang, theme: theme, appContext: appContext, voice: voice, onPickImage: onPickImage, onClose: () => Navigator.of(ctx).pop()),
         ),
       ),
     );
@@ -457,7 +494,7 @@ Future<void> showOryksaChat(
           child: SizedBox(
             width: 380,
             height: 560,
-            child: OryksaChat(client: client, lang: lang, theme: theme, appContext: appContext, voice: voice, onClose: () => Navigator.of(ctx).pop()),
+            child: OryksaChat(client: client, lang: lang, theme: theme, appContext: appContext, voice: voice, onPickImage: onPickImage, onClose: () => Navigator.of(ctx).pop()),
           ),
         ),
       ),
@@ -484,6 +521,7 @@ Future<void> showOryksaChatScreen(
   OryksaChatTheme? theme,
   OryksaAppContext? Function()? appContext,
   bool voice = true,
+  Future<OryksaImage?> Function()? onPickImage,
   double panelWidth = 420,
 }) {
   final l = oryksaLangOf(context, lang);
@@ -496,7 +534,7 @@ Future<void> showOryksaChatScreen(
         backgroundColor: th.background,
         body: SafeArea(
           child: OryksaChat(
-              client: client, lang: l, theme: th, appContext: appContext, voice: voice, onClose: () => Navigator.of(ctx).maybePop()),
+              client: client, lang: l, theme: th, appContext: appContext, voice: voice, onPickImage: onPickImage, onClose: () => Navigator.of(ctx).maybePop()),
         ),
       ),
     ));
@@ -532,7 +570,7 @@ Future<void> showOryksaChatScreen(
                 child: Padding(
                   padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
                   child: OryksaChat(
-                      client: client, lang: l, theme: th, appContext: appContext, voice: voice, onClose: () => Navigator.of(ctx).pop()),
+                      client: client, lang: l, theme: th, appContext: appContext, voice: voice, onPickImage: onPickImage, onClose: () => Navigator.of(ctx).pop()),
                 ),
               ),
             ),
@@ -555,6 +593,7 @@ class OryksaChatButton extends StatefulWidget {
     this.alignLeft = false,
     this.appContext,
     this.voice = true,
+    this.onPickImage,
   });
 
   /// Where the customer is in your app right now (sent with each message).
@@ -562,6 +601,10 @@ class OryksaChatButton extends StatefulWidget {
 
   /// Shows the microphone in the chat when the plan has voice.
   final bool voice;
+
+  /// Shows a photo button in the chat. Return the photo the customer picked (for example
+  /// with the `image_picker` package), or null when they cancel. The AI looks at the photo.
+  final Future<OryksaImage?> Function()? onPickImage;
 
   /// Client with the session token.
   final OryksaClient client;
@@ -606,7 +649,7 @@ class _OryksaChatButtonState extends State<OryksaChatButton> {
             theme: widget.theme,
             alignLeft: widget.alignLeft,
             appContext: widget.appContext,
-            voice: widget.voice),
+            voice: widget.voice, onPickImage: widget.onPickImage),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 18, 8),
           child: Row(mainAxisSize: MainAxisSize.min, children: [

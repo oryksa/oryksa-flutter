@@ -19,6 +19,7 @@ class OryksaTabBubble extends StatefulWidget {
     this.theme,
     this.appContext,
     this.voice = true,
+    this.onPickImage,
     this.size = 64,
     this.unread = false,
     this.showLabel = false,
@@ -43,6 +44,10 @@ class OryksaTabBubble extends StatefulWidget {
 
   /// Shows the microphone in the chat when the plan has voice.
   final bool voice;
+
+  /// Shows a photo button in the chat. Return the photo the customer picked (for example
+  /// with the `image_picker` package), or null when they cancel. The AI looks at the photo.
+  final Future<OryksaImage?> Function()? onPickImage;
 
   /// Diameter of the bubble with its ring, in dp (64 by default, 48 at least).
   final double size;
@@ -110,7 +115,7 @@ class _OryksaTabBubbleState extends State<OryksaTabBubble> {
     _opening = true;
     try {
       await showOryksaChatScreen(context,
-          client: widget.client, lang: widget.lang, theme: widget.theme, appContext: widget.appContext, voice: widget.voice);
+          client: widget.client, lang: widget.lang, theme: widget.theme, appContext: widget.appContext, voice: widget.voice, onPickImage: widget.onPickImage);
     } finally {
       _opening = false;
     }
@@ -261,6 +266,7 @@ class OryksaBottomBar extends StatelessWidget {
     this.theme,
     this.appContext,
     this.voice = true,
+    this.onPickImage,
     this.unread = false,
     this.onBubbleOpen,
     this.onBubbleTap,
@@ -296,6 +302,10 @@ class OryksaBottomBar extends StatelessWidget {
 
   /// Shows the microphone in the chat when the plan has voice.
   final bool voice;
+
+  /// Shows a photo button in the chat. Return the photo the customer picked (for example
+  /// with the `image_picker` package), or null when they cancel. The AI looks at the photo.
+  final Future<OryksaImage?> Function()? onPickImage;
 
   /// Shows the unread dot on the bubble (see [OryksaTabBubble.unread]).
   final bool unread;
@@ -407,6 +417,7 @@ class OryksaBottomBar extends StatelessWidget {
           theme: theme,
           appContext: appContext,
           voice: voice,
+          onPickImage: onPickImage,
           size: bubbleSize,
           unread: unread,
           showLabel: showBubbleLabel,
