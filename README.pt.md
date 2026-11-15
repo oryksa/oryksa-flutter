@@ -4,13 +4,10 @@
 
 [![English](https://img.shields.io/badge/English-30363d?style=for-the-badge)](README.md) [![Português](https://img.shields.io/badge/Portugu%C3%AAs-0891b2?style=for-the-badge)](README.pt.md) [![Español](https://img.shields.io/badge/Espa%C3%B1ol-30363d?style=for-the-badge)](README.es.md) [![Français](https://img.shields.io/badge/Fran%C3%A7ais-30363d?style=for-the-badge)](README.fr.md)
 
-SDK oficial Flutter da **ORYKSA AI Employees**: põe na tua app um colaborador de IA que já conhece o teu negócio, com um chat pronto igual ao chat do site da ORYKSA, com o nome e a foto da tua IA.
+SDK oficial Flutter da **ORYKSA AI Employees**. Põe dentro da tua app Flutter (Android, iOS, web e desktop) um colaborador de IA que já conhece o teu negócio: uma bolinha redonda com a foto da tua IA no meio da tua barra de separadores, um chat pronto com o mesmo aspeto do chat do site da ORYKSA, o nome e a foto da tua IA vindos da tua conta ORYKSA, em inglês, português e espanhol.
 
-1. O teu **servidor** guarda a chave secreta e cria um token de sessão para cada utilizador (`POST /v1/sessions`).
-2. A **app** usa só esse token: `OryksaClient(getToken: ...)` e `OryksaChatButton(client: client, lang: 'pt')`.
-3. **Bolinha na barra de separadores (1.2):** troca o teu `NavigationBar` por `OryksaBottomBar(client: client, ...)` e a foto da tua IA fica no meio da barra. Ao tocar abre o chat com voz: ecrã inteiro no telemóvel, painel lateral em ecrãs largos. Numa barra tua, usa `OryksaTabBubble(client: client)`.
-4. Cada resposta da IA conta como uma interação do teu plano.
-5. As funções de servidor (chave secreta, alterar a IA e o Brain, webhooks) estão numa biblioteca à parte, `package:oryksa/oryksa_server.dart`, só para o teu servidor. Nunca a importes na app.
+* Documentação: https://developer.oryksa.com/pt/sdks
+* API: `https://api.oryksa.com/v1`
 
 ## Instalar
 
@@ -18,7 +15,134 @@ SDK oficial Flutter da **ORYKSA AI Employees**: põe na tua app um colaborador d
 flutter pub add oryksa
 ```
 
-**Documentação completa:** https://developer.oryksa.com/pt/sdk-flutter
+## Para que serve
+
+O SDK põe o chat e a voz da ORYKSA dentro da tua app para atender os **clientes do teu negócio**: eles perguntam, compram e marcam. A IA responde com o teu Brain, os teus produtos e serviços, com o nome, a foto e a voz que escolheste em *A tua IA*, e guarda leads, marcações e vendas nas Atividades da tua conta ORYKSA. **Não** é uma interface para o dono: ninguém altera definições, lê Atividades ou dá ordens à ORYKSA através do SDK. Mais: https://help.oryksa.com/pt/a/sdks-what-they-do
+
+Os palavrões que o cliente escreve aparecem como asteriscos no chat (a mesma lista de todos os chats da ORYKSA, carregada de `https://app.oryksa.com/widget/profanity.json` e guardada durante 24 horas). As respostas da IA já vêm filtradas do servidor.
+
+## Bolinha na barra de separadores (1.2)
+
+A bolinha redonda com a foto da tua IA no meio da barra de separadores inferior, igual à da app ORYKSA. Ao tocar nela, abre o chat (com o microfone para voz): ecrã inteiro nos telemóveis, um painel lateral em ecrãs largos (840 dp ou mais: tablets, dobráveis abertos, desktop), para que a tua app continue visível ao lado. O nome e a foto vêm de *A tua IA* na tua conta ORYKSA.
+
+<p align="center"><img src="https://developer.oryksa.com/assets/img/sdk/flutter-tab-bubble.png" width="760" alt="Bolinha da ORYKSA na barra de separadores: a barra, o chat, o ecrã de voz e o painel lateral num tablet"></p>
+
+Troca o teu `NavigationBar` por `OryksaBottomBar` (os mesmos itens `NavigationDestination`):
+
+```dart
+final client = OryksaClient(getToken: myBackend.fetchOryksaToken); // devolve "oryk_cs_..."
+
+bottomNavigationBar: OryksaBottomBar(
+  client: client,
+  selectedIndex: tab,
+  onDestinationSelected: (i) => setState(() => tab = i),
+  destinations: const [
+    NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
+    NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
+    NavigationDestination(icon: Icon(Icons.receipt_long_outlined), label: 'Orders'),
+    NavigationDestination(icon: Icon(Icons.person_outline), label: 'Account'),
+  ],
+),
+```
+
+Já tens a tua própria barra? Põe `OryksaTabBubble` no meio dela:
+
+```dart
+// na Row da tua barra
+Row(children: [...leftTabs, OryksaTabBubble(client: client, showLabel: true, borderColor: barColor), ...rightTabs]);
+
+// ou encaixada numa BottomAppBar
+floatingActionButton: OryksaTabBubble(client: client),
+floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+```
+
+* `lang`: `en`, `pt`, `br` ou `es` (ou uma etiqueta de idioma como `pt-BR`). Deixa-o a null para seguir o idioma da app (adiciona `flutter_localizations` e os teus `supportedLocales`, como no exemplo).
+* `theme`: null segue o tema claro ou escuro da app (`OryksaChatTheme()` / `OryksaChatTheme.dark()`); passa um para usares as tuas cores.
+* `unread: true` mostra um ponto na bolinha (por exemplo depois de uma notificação push do teu servidor no webhook `message.replied`); limpa-o em `onBubbleOpen` / `onOpen`.
+* `appContext`: o ecrã em que o cliente está, enviado com cada mensagem (ver abaixo).
+* Os leitores de ecrã ouvem "Talk to Sofia" ("Falar com Sofia", "Hablar con Sofia", mais "new message" quando há uma). Nas apps da direita para a esquerda, o painel lateral fica à esquerda.
+* Abre o mesmo chat a partir de qualquer sítio com `showOryksaChatScreen(context, client: client)`.
+
+## Voz e contexto da app (1.1)
+
+O chat mostra um microfone quando o teu plano tem voz. Abre o ecrã de voz com o mesmo comportamento da app ORYKSA: o microfone fica aberto enquanto ela fala e só uma voz humana a interrompe (escrever, a TV e o eco dela própria não); ela para na palavra e o texto fica no chat; um sussurro recebe uma resposta sussurrada; se a voz dela falhar, aparece o texto (nunca uma voz de robô).
+
+Permissão do microfone: Android `<uses-permission android:name="android.permission.RECORD_AUDIO"/>`, iOS `NSMicrophoneUsageDescription` no Info.plist.
+
+```dart
+OryksaChatButton(
+  client: client,
+  lang: 'pt',
+  // o ecrã em que o cliente está, para a IA responder sobre ele
+  appContext: () => const OryksaAppContext(screen: 'product', title: 'Sky Beginner Snowboard, 489.95'),
+)
+```
+
+## Como funciona (e porque é que a chave fica segura)
+
+1. O teu **servidor** guarda a chave secreta da API (`oryk_live_...`, criada em developer.oryksa.com) e cria um **token de sessão** de curta duração para cada utilizador com sessão iniciada, com `POST /v1/sessions`.
+2. A tua **app** recebe só esse token de sessão (`oryk_cs_...`) e fala com a ORYKSA através dele. A chave secreta nunca entra na app.
+3. Cada resposta da IA conta como uma interação do teu plano ORYKSA, tal como no WhatsApp.
+
+## Na app
+
+```dart
+import 'package:oryksa/oryksa.dart';
+
+final client = OryksaClient(
+  getToken: () async => await myBackend.fetchOryksaToken(), // devolve "oryk_cs_..."
+);
+
+Scaffold(
+  body: MyScreen(),
+  floatingActionButton: OryksaChatButton(client: client, lang: 'en'), // en, pt, br, es
+);
+```
+
+Abre-o a partir do teu próprio botão com `showOryksaChat(context, client: client)`, ou coloca o painel em qualquer sítio com `OryksaChat(client: client)`. Muda as cores com `OryksaChatTheme`.
+
+Sem a interface:
+
+```dart
+final agent = await client.agent();            // nome, foto, saudação, sugestões
+final text = await client.sendAndWait('Are you open on Saturday?');
+final history = await client.messages();
+```
+
+## No teu servidor Dart (chave secreta)
+
+As funções de servidor estão numa biblioteca à parte, **só para o teu backend**: nunca a importes na app. A biblioteca da app (`package:oryksa/oryksa.dart`) serve apenas os teus clientes e não pode alterar a IA nem o Brain dela.
+
+```dart
+import 'package:oryksa/oryksa_server.dart';
+
+final oryksa = Oryksa(Platform.environment['ORYKSA_API_KEY']!);
+
+// token de sessão para um utilizador (envia só o client_token para a app)
+final s = await oryksa.createSession(conversationId: 'user-42', customerName: 'Ana');
+
+// mantém a IA sincronizada com a tua app (chama-o em cada versão)
+await oryksa.learnApp(
+  name: 'FitTrack',
+  description: 'Fitness app to log workouts and follow training plans.',
+  screens: [{'title': 'Workouts', 'content': 'Tap + to log a workout.'}],
+  faq: [{'question': 'How do I cancel Premium?', 'answer': 'Settings > Subscription > Cancel.'}],
+);
+```
+
+Servidores noutras linguagens podem chamar a mesma API: vê https://developer.oryksa.com.
+
+## Webhooks
+
+```dart
+import 'package:oryksa/oryksa_server.dart';
+
+final event = verifyWebhook(rawBody, request.headers['oryksa-signature'], webhookSecret);
+```
+
+## Erros
+
+Cada chamada falhada lança `OryksaException` com `status`, `code` (por exemplo `interaction_limit_reached`, `rate_limited`, `plan_required`) e `message`.
 
 ---
 
