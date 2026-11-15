@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,15 +10,34 @@ import 'voice.dart';
 import 'voice_screen.dart';
 
 /// Colors of the chat. The defaults are the ORYKSA website chat colors.
+///
+/// [OryksaChatTheme.dark] is the dark version. The tab bar bubble and its chat
+/// pick the light or dark one from the app theme when no theme is given
+/// ([OryksaChatTheme.of]).
 class OryksaChatTheme {
-  /// Creates a theme.
+  /// Creates a theme (light).
   const OryksaChatTheme({
     this.accent = const Color(0xFF5B57E0),
     this.ink = const Color(0xFF161B3D),
     this.soft = const Color(0xFFEEEBFB),
     this.background = Colors.white,
     this.muted = const Color(0xFF6B7280),
+    this.line = const Color(0xFFECEEF6),
   });
+
+  /// The dark theme (the ORYKSA app dark colors).
+  const OryksaChatTheme.dark({
+    this.accent = const Color(0xFF7D79F0),
+    this.ink = const Color(0xFFECEEFB),
+    this.soft = const Color(0xFF262C4D),
+    this.background = const Color(0xFF141A30),
+    this.muted = const Color(0xFF9AA2C6),
+    this.line = const Color(0xFF2B3154),
+  });
+
+  /// The light or the dark default theme, following the app theme of [context].
+  static OryksaChatTheme of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? const OryksaChatTheme.dark() : const OryksaChatTheme();
 
   /// Buttons, visitor bubbles and links.
   final Color accent;
@@ -32,16 +53,40 @@ class OryksaChatTheme {
 
   /// Secondary text.
   final Color muted;
+
+  /// Dividers and outlines.
+  final Color line;
 }
 
 const Map<String, Map<String, String>> _tx = {
-  'en': {'talk': 'Talk to', 'ph': 'Type your question', 'send': 'Send', 'err': 'Sorry, something went wrong. Try again.', 'voice': 'Talk by voice', 'copy': 'Copy'},
-  'pt': {'talk': 'Falar com', 'ph': 'Escreve a tua pergunta', 'send': 'Enviar', 'err': 'Desculpa, algo correu mal. Tenta de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar'},
-  'br': {'talk': 'Falar com', 'ph': 'Digite sua pergunta', 'send': 'Enviar', 'err': 'Desculpe, algo deu errado. Tente de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar'},
-  'es': {'talk': 'Hablar con', 'ph': 'Escribe tu pregunta', 'send': 'Enviar', 'err': 'Lo siento, algo salió mal. Inténtalo de nuevo.', 'voice': 'Hablar por voz', 'copy': 'Copiar'},
+  'en': {'talk': 'Talk to', 'ph': 'Type your question', 'send': 'Send', 'err': 'Sorry, something went wrong. Try again.', 'voice': 'Talk by voice', 'copy': 'Copy', 'unread': 'new message'},
+  'pt': {'talk': 'Falar com', 'ph': 'Escreve a tua pergunta', 'send': 'Enviar', 'err': 'Desculpa, algo correu mal. Tenta de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem'},
+  'br': {'talk': 'Falar com', 'ph': 'Digite sua pergunta', 'send': 'Enviar', 'err': 'Desculpe, algo deu errado. Tente de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem'},
+  'es': {'talk': 'Hablar con', 'ph': 'Escribe tu pregunta', 'send': 'Enviar', 'err': 'Lo siento, algo salió mal. Inténtalo de nuevo.', 'voice': 'Hablar por voz', 'copy': 'Copiar', 'unread': 'mensaje nuevo'},
 };
 
-String _lang(String l) => _tx.containsKey(l) ? l : 'en';
+/// The SDK language for a language code or locale tag: `en`, `pt`, `br` (Portuguese
+/// of Brazil) or `es`. Accepts `pt-BR`, `pt_BR`, `pt-PT`, `es-ES`, `en-GB`...;
+/// anything else is `en`.
+String oryksaLang(String? lang) {
+  final l = (lang ?? '').trim().toLowerCase().replaceAll('_', '-');
+  if (l == 'br' || l == 'pt-br') return 'br';
+  if (l == 'pt' || l.startsWith('pt-')) return 'pt';
+  if (l == 'es' || l.startsWith('es-')) return 'es';
+  return 'en';
+}
+
+/// The SDK language of the app: [lang] when given, otherwise the locale of [context].
+String oryksaLangOf(BuildContext context, [String? lang]) {
+  if (lang != null && lang.trim().isNotEmpty) return oryksaLang(lang);
+  final loc = Localizations.maybeLocaleOf(context);
+  return oryksaLang(loc?.toLanguageTag());
+}
+
+/// Texts of the chat for [lang] (`en`, `pt`, `br`, `es`).
+Map<String, String> oryksaChatTexts(String lang) => _tx[oryksaLang(lang)]!;
+
+String _lang(String l) => oryksaLang(l);
 
 /// The ORYKSA chat panel: header with the photo and name of the AI, messages,
 /// suggested questions and the input. Same look as the ORYKSA website chat.
@@ -68,7 +113,7 @@ class OryksaChat extends StatefulWidget {
   /// Needs the microphone permission in the app (see the README).
   final bool voice;
 
-  /// `en`, `pt`, `br` or `es`.
+  /// `en`, `pt`, `br` or `es` (locale tags such as `pt-BR` or `es-ES` work too).
   final String lang;
 
   /// Colors.
@@ -150,7 +195,7 @@ class _OryksaChatState extends State<OryksaChat> {
     _toEnd();
     String? reply;
     try {
-      reply = await widget.client.sendAndWait(text, appContext: widget.appContext?.call());
+      reply = await widget.client.sendAndWait(text, appContext: widget.appContext?.call(), lang: _lang(widget.lang));
     } catch (_) {
       reply = null;
     }
@@ -169,6 +214,7 @@ class _OryksaChatState extends State<OryksaChat> {
     final ctl = OryksaVoiceController(
       client: widget.client,
       appContext: widget.appContext,
+      lang: _lang(widget.lang),
       onUserText: (s) {
         if (!mounted) return;
         setState(() {
@@ -206,10 +252,10 @@ class _OryksaChatState extends State<OryksaChat> {
       color: th.background,
       child: Column(children: [
         Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFECEEF6)))),
+          padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 8, 14),
+          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: th.line))),
           child: Row(children: [
-            _Avatar(url: a?.avatar, size: 46),
+            _Avatar(url: a?.avatar, size: 46, placeholder: th.soft),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -223,7 +269,7 @@ class _OryksaChatState extends State<OryksaChat> {
           ]),
         ),
         Expanded(
-          child: ListView.separated(
+          child: LayoutBuilder(builder: (context, box) => ListView.separated(
             controller: _scroll,
             padding: const EdgeInsets.all(16),
             itemCount: _msgs.length,
@@ -232,18 +278,18 @@ class _OryksaChatState extends State<OryksaChat> {
               final m = _msgs[i];
               final mine = m.role == 'user';
               final bubble = Align(
-                alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+                alignment: mine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .72),
+                  constraints: BoxConstraints(maxWidth: box.maxWidth * .78),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: mine ? th.accent : th.soft,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft: Radius.circular(mine ? 16 : 6),
-                        bottomRight: Radius.circular(mine ? 6 : 16),
+                      borderRadius: BorderRadiusDirectional.only(
+                        topStart: const Radius.circular(16),
+                        topEnd: const Radius.circular(16),
+                        bottomStart: Radius.circular(mine ? 16 : 6),
+                        bottomEnd: Radius.circular(mine ? 6 : 16),
                       ),
                     ),
                     child: Opacity(
@@ -264,7 +310,7 @@ class _OryksaChatState extends State<OryksaChat> {
                 _CopyButton(text: m.text.replaceAll('**', ''), label: _tx[_lang(widget.lang)]!['copy']!, color: th.muted),
               ]);
             },
-          ),
+          )),
         ),
         if (_sug.isNotEmpty)
           Padding(
@@ -275,7 +321,7 @@ class _OryksaChatState extends State<OryksaChat> {
                   onPressed: () => _send(s),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: th.accent,
-                    side: const BorderSide(color: Color(0xFFDCDCF5)),
+                    side: BorderSide(color: th.line),
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     textStyle: const TextStyle(fontSize: 12.5),
@@ -285,7 +331,7 @@ class _OryksaChatState extends State<OryksaChat> {
             ]),
           ),
         Container(
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFECEEF6)))),
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: th.line))),
           child: Row(children: [
             Expanded(
               child: TextField(
@@ -297,6 +343,7 @@ class _OryksaChatState extends State<OryksaChat> {
                 style: TextStyle(fontSize: 14, color: th.ink),
                 decoration: InputDecoration(
                   hintText: t['ph'],
+                  hintStyle: TextStyle(fontSize: 14, color: th.muted),
                   counterText: '',
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -350,9 +397,10 @@ List<TextSpan> oryksaBold(String text, TextStyle base) {
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.url, required this.size});
+  const _Avatar({required this.url, required this.size, this.placeholder = const Color(0xFFEEEBFB)});
   final String? url;
   final double size;
+  final Color placeholder;
 
   @override
   Widget build(BuildContext context) {
@@ -361,8 +409,8 @@ class _Avatar extends StatelessWidget {
         width: size,
         height: size,
         child: url == null
-            ? const ColoredBox(color: Color(0xFFEEEBFB))
-            : Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFEEEBFB))),
+            ? ColoredBox(color: placeholder)
+            : Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: placeholder)),
       ),
     );
   }
@@ -414,6 +462,84 @@ Future<void> showOryksaChat(
         ),
       ),
     ),
+  );
+}
+
+/// From this width (in logical pixels, dp) the tab bar bubble opens the chat as a
+/// side panel instead of a full screen: tablets, open foldables and desktop.
+const double oryksaWideBreakpoint = 840;
+
+/// Opens the ORYKSA chat the way the tab bar bubble does ([OryksaTabBubble]):
+///
+/// * phones (narrower than [oryksaWideBreakpoint]): a full screen page;
+/// * wide screens: a side panel at the end of the screen (the right in
+///   left-to-right languages), so the app stays visible beside the chat.
+///
+/// [lang] is `en`, `pt`, `br` or `es` (or a locale tag such as `pt-BR`); when it
+/// is null the app locale is used. [theme] null follows the app light or dark theme.
+Future<void> showOryksaChatScreen(
+  BuildContext context, {
+  required OryksaClient client,
+  String? lang,
+  OryksaChatTheme? theme,
+  OryksaAppContext? Function()? appContext,
+  bool voice = true,
+  double panelWidth = 420,
+}) {
+  final l = oryksaLangOf(context, lang);
+  final th = theme ?? OryksaChatTheme.of(context);
+  if (MediaQuery.sizeOf(context).width < oryksaWideBreakpoint) {
+    return Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      settings: const RouteSettings(name: 'oryksa-chat'),
+      builder: (ctx) => Scaffold(
+        backgroundColor: th.background,
+        body: SafeArea(
+          child: OryksaChat(
+              client: client, lang: l, theme: th, appContext: appContext, voice: voice, onClose: () => Navigator.of(ctx).maybePop()),
+        ),
+      ),
+    ));
+  }
+  return showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    barrierColor: Colors.black12,
+    transitionDuration: const Duration(milliseconds: 240),
+    routeSettings: const RouteSettings(name: 'oryksa-chat'),
+    transitionBuilder: (_, __, ___, child) => child,
+    pageBuilder: (ctx, anim, _) {
+      final rtl = Directionality.of(ctx) == TextDirection.rtl;
+      final size = MediaQuery.sizeOf(ctx);
+      return Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: SlideTransition(
+          position: Tween<Offset>(begin: Offset(rtl ? -1 : 1, 0), end: Offset.zero)
+              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+          child: Material(
+            elevation: 16,
+            color: th.background,
+            clipBehavior: Clip.antiAlias,
+            shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadiusDirectional.horizontal(start: Radius.circular(20))),
+            child: SizedBox(
+              width: math.min(panelWidth, size.width * .5),
+              height: size.height,
+              child: SafeArea(
+                left: rtl,
+                right: !rtl,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+                  child: OryksaChat(
+                      client: client, lang: l, theme: th, appContext: appContext, voice: voice, onClose: () => Navigator.of(ctx).pop()),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
   );
 }
 

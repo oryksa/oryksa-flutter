@@ -2,6 +2,9 @@
 ///
 /// * [OryksaClient]: in-app client. Uses a short-lived session token created by
 ///   your server, never the secret API key.
+/// * [OryksaBottomBar] and [OryksaTabBubble]: the round bubble with the photo of
+///   the AI in the middle of the bottom tab bar, as in the ORYKSA app. Tapping it
+///   opens the chat with voice ([showOryksaChatScreen]).
 /// * [OryksaChat] and [OryksaChatButton]: a ready chat with the name and photo of
 ///   the AI from the ORYKSA account, with voice ([OryksaVoiceScreen]): the same
 ///   behaviour as the ORYKSA app (only a human voice cuts her off).
@@ -21,4 +24,5 @@ export 'src/chat.dart';
 export 'src/profanity.dart';
 export 'src/voice.dart';
 export 'src/voice_screen.dart';
+export 'src/tab_bubble.dart';
 export 'vad.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'chat.dart' show OryksaChatTheme;
+import 'chat.dart' show OryksaChatTheme, oryksaLang;
 import 'models.dart';
 import 'voice.dart';
 
@@ -80,7 +80,7 @@ const Map<String, Map<String, String>> _vx = {
 };
 
 /// Texts of the voice screen for [lang] (`en`, `pt`, `br`, `es`).
-Map<String, String> oryksaVoiceTexts(String lang) => _vx[lang] ?? _vx['en']!;
+Map<String, String> oryksaVoiceTexts(String lang) => _vx[oryksaLang(lang)]!;
 
 /// Full-screen voice conversation, the same as the ORYKSA app: the photo of the AI
 /// with a halo, "I'm listening" / her answer, Mute and Close. What is said goes to
@@ -177,7 +177,7 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 8, 6),
               child: Row(children: [
-                _Photo(url: widget.agent.avatar, size: 38),
+                _Photo(url: widget.agent.avatar, size: 38, placeholder: th.soft),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -251,7 +251,7 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
 
             return Stack(alignment: Alignment.center, children: [ring(236, .06, 0), ring(184, .09, .125), ring(136, .13, .25), child!]);
           },
-          child: _Photo(url: widget.agent.avatar, size: 124),
+          child: _Photo(url: widget.agent.avatar, size: 124, placeholder: th.soft),
         ),
       );
 
@@ -264,7 +264,7 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: cancel ? const Color(0xFFFDF0EF) : th.background,
-              border: Border.all(color: cancel ? const Color(0xFFF3C0BE) : const Color(0xFFECECF6), width: 1.5),
+              border: Border.all(color: cancel ? const Color(0xFFF3C0BE) : th.line, width: 1.5),
               boxShadow: const [BoxShadow(color: Color(0x0F1E1E50), blurRadius: 12, offset: Offset(0, 4))],
             ),
             child: Icon(ic, size: 22, color: cancel ? const Color(0xFFE05A52) : th.muted),
@@ -276,16 +276,17 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
 }
 
 class _Photo extends StatelessWidget {
-  const _Photo({required this.url, required this.size});
+  const _Photo({required this.url, required this.size, this.placeholder = const Color(0xFFEEEBFB)});
   final String url;
   final double size;
+  final Color placeholder;
 
   @override
   Widget build(BuildContext context) => ClipOval(
         child: SizedBox(
           width: size,
           height: size,
-          child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFEEEBFB))),
+          child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: placeholder)),
         ),
       );
 }

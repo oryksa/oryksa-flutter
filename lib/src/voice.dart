@@ -60,10 +60,14 @@ class OryksaVoiceController extends ChangeNotifier {
     this.appContext,
     this.onUserText,
     this.onReply,
+    this.lang,
   });
 
   /// Client with the session token.
   final OryksaClient client;
+
+  /// The language of your app screen (`en`, `pt`, `br`, `es`), sent with each message.
+  final String? lang;
 
   /// Where the customer is in your app (sent with each message).
   final OryksaAppContext? Function()? appContext;
@@ -316,7 +320,7 @@ class OryksaVoiceController extends ChangeNotifier {
     OryksaReply? r;
     try {
       r = await client.sendAndWaitReply(text,
-          appContext: appContext?.call(), voice: true, whisper: whisper, voiceStats: stats);
+          appContext: appContext?.call(), voice: true, whisper: whisper, voiceStats: stats, lang: lang);
     } catch (_) {
       r = null;
     }

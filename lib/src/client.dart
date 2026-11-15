@@ -41,7 +41,7 @@ class OryksaClient {
 
   Future<String> _tok(bool force) async {
     if ((_token == null || force) && _getToken != null) {
-      _token = await _getToken!();
+      _token = await _getToken();
     }
     final t = _token;
     if (t == null || t.isEmpty) {
@@ -71,15 +71,19 @@ class OryksaClient {
   /// * [voice]: the reply will be heard; it also carries a short [OryksaReply.speech].
   /// * [whisper]: the customer whispered; the spoken reply is shorter and whispered.
   /// * [voiceStats]: audio numbers of this voice turn (sent by the voice screen).
+  /// * [lang]: the language of your app screen (`en`, `pt`, `br`, `es`). The AI uses
+  ///   it when the message alone does not show the language (for example "ok").
   Future<OryksaReply> send(
     String message, {
     OryksaAppContext? appContext,
     bool voice = false,
     bool whisper = false,
     Map<String, dynamic>? voiceStats,
+    String? lang,
   }) async =>
       OryksaReply.fromJson(await _req('POST', '/client/chat', {
         'message': message,
+        if (lang != null && lang.isNotEmpty) 'lang': lang,
         if (appContext != null) 'app_context': appContext.toJson(),
         if (voice) 'voice': true,
         if (whisper) 'whisper': true,
@@ -91,8 +95,9 @@ class OryksaClient {
     String message, {
     Duration maxWait = const Duration(seconds: 40),
     OryksaAppContext? appContext,
+    String? lang,
   }) async =>
-      (await sendAndWaitReply(message, maxWait: maxWait, appContext: appContext)).reply;
+      (await sendAndWaitReply(message, maxWait: maxWait, appContext: appContext, lang: lang)).reply;
 
   /// Like [sendAndWait], but returns the whole [OryksaReply] (with [OryksaReply.speech] when [voice] is on).
   Future<OryksaReply> sendAndWaitReply(
@@ -102,8 +107,9 @@ class OryksaClient {
     bool voice = false,
     bool whisper = false,
     Map<String, dynamic>? voiceStats,
+    String? lang,
   }) async {
-    final r = await send(message, appContext: appContext, voice: voice, whisper: whisper, voiceStats: voiceStats);
+    final r = await send(message, appContext: appContext, voice: voice, whisper: whisper, voiceStats: voiceStats, lang: lang);
     if (r.status != 'pending') return r;
     final end = DateTime.now().add(maxWait);
     while (DateTime.now().isBefore(end)) {

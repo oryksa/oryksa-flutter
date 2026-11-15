@@ -1,13 +1,15 @@
 name: oryksa_example
-description: Minimal example of the ORYKSA chat in a Flutter app.
+description: Example of the ORYKSA SDK in a Flutter app (the AI bubble in the tab bar, chat and voice).
 publish_to: none
 version: 1.0.0
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.6.0 <4.0.0"
 
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
   http: ">=0.13.6 <2.0.0"
   oryksa:

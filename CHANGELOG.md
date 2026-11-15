@@ -1,3 +1,16 @@
+## 1.2.0
+
+* **Tab bar bubble.** `OryksaTabBubble`: the round button with the photo of the AI (from *Your AI* in ORYKSA), a ring and an optional unread dot, for the middle of a bottom tab bar, as in the ORYKSA app. Tapping it opens the chat with voice.
+* `OryksaBottomBar`: a Material 3 style bottom bar with your `NavigationDestination` items and the bubble in the middle (same `selectedIndex` / `onDestinationSelected` as `NavigationBar`). The bubble rises a little above the bar (`raise`), the bar follows the app theme and the safe area.
+* `showOryksaChatScreen`: the chat full screen on phones and as a side panel on wide screens (840 dp or more), at the end of the screen (the left in right-to-left apps), so the app stays visible beside it.
+* The microphone in the chat opens the voice screen, with the same behaviour as before.
+* Dark mode: `OryksaChatTheme.dark()` and `OryksaChatTheme.of(context)`; the bubble and its chat follow the light or dark theme of the app when no theme is given. New `line` color in `OryksaChatTheme`.
+* Languages: `lang` also accepts locale tags (`pt-BR`, `pt_BR`, `pt-PT`, `es-ES`); the bubble and the bar follow the app locale when `lang` is null (`oryksaLang`, `oryksaLangOf`). Accessibility label "Talk to" + the name of the AI in English, Portuguese (Portugal and Brazil) and Spanish, with "new message" when the dot is on.
+* The chat sends the language of the screen with each message (`lang` in `send`, `sendAndWait`, `sendAndWaitReply` and `OryksaVoiceController`), so a short message such as "ok" gets the reply in that language.
+* Right-to-left safe chat bubbles and paddings.
+* Example app: four tabs with the bubble in the middle, the language of the phone, light and dark, two columns on tablets.
+* Needs Flutter 3.27 or newer (the SDK already used APIs from it).
+
 ## 1.1.1
 
 - Voice screen: the words the person says are never shown on screen. While the AI thinks it shows "I'm listening" / "One moment..." in the interface language; the AI's answer still shows as text. Same behaviour as the ORYKSA apps, web and extensions.
