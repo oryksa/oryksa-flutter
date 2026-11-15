@@ -43,10 +43,16 @@ class Oryksa {
       }));
 
   /// Short-lived token for one app user. Send only `client_token` to the app.
-  Future<Map<String, dynamic>> createSession({String? conversationId, String? customerName, int ttlMinutes = 60}) =>
+  ///
+  /// When the user is signed in to your app, pass [customerEmail] and/or [customerPhone] (with the country code):
+  /// the AI then asks for no contact details and knows the customer is signed in.
+  Future<Map<String, dynamic>> createSession(
+          {String? conversationId, String? customerName, String? customerEmail, String? customerPhone, int ttlMinutes = 60}) =>
       _req('POST', '/sessions', {
         if (conversationId != null) 'conversation_id': conversationId,
         if (customerName != null) 'customer_name': customerName,
+        if (customerEmail != null) 'customer_email': customerEmail,
+        if (customerPhone != null) 'customer_phone': customerPhone,
         'ttl_minutes': ttlMinutes,
       });
 

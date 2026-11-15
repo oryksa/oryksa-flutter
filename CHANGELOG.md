@@ -9,6 +9,7 @@
 * The chat sends the language of the screen with each message (`lang` in `send`, `sendAndWait`, `sendAndWaitReply` and `OryksaVoiceController`), so a short message such as "ok" gets the reply in that language.
 * Right-to-left safe chat bubbles and paddings.
 * Example app: four tabs with the bubble in the middle, the language of the phone, light and dark, two columns on tablets.
+* Server side: `createSession` takes `customerEmail` and `customerPhone`. For a user signed in to your app, the AI asks for no contact details and never tells them to register or sign in.
 * Needs Flutter 3.27 or newer (the SDK already used APIs from it).
 
 ## 1.1.1
