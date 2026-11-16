@@ -1,3 +1,9 @@
+## 1.2.1
+
+* **Company logo in the tab bar bubble.** The business now chooses in the ORYKSA panel (Connectors > Website chat) whether the bubble shows the photo of the AI or the company logo. With the logo, the bubble shows the whole logo on white (not cropped) and the business name under it. The chat and the voice screen that open on tap keep the photo and name of the AI, and screen readers still hear "Talk to" + the name of the AI.
+* `OryksaTabBubble(image:)` and `OryksaBottomBar(bubbleImage:)`: an image of your app (for example `AssetImage('assets/logo.png')`) for the bubble, over what the panel chose. `label` / `bubbleLabel` still win over the text from the panel.
+* `OryksaAgent` gets `launcherIcon` (`ai` or `logo`), `launcherImage` and `launcherLabel`, read from `launcher` in `GET /v1/client/agent`. With an older server that does not send it, the bubble shows the photo and name of the AI, as in 1.2.0.
+
 ## 1.2.0
 
 * **Tab bar bubble.** `OryksaTabBubble`: the round button with the photo of the AI (from *Your AI* in ORYKSA), a ring and an optional unread dot, for the middle of a bottom tab bar, as in the ORYKSA app. Tapping it opens the chat with voice.

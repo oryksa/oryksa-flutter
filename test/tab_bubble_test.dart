@@ -14,9 +14,11 @@ import 'package:oryksa/oryksa.dart';
 /// microphone that opens the voice screen.
 void main() {
   const photo = 'https://app.oryksa.com/static/avatars/sofia.jpg';
+  const logo = 'https://app.oryksa.com/static/logos/tugafreela.png';
 
-  /// A client that answers like the ORYKSA API (no network).
-  OryksaClient fakeClient({bool voice = true, bool agentFails = false, List<Map<String, dynamic>>? sent}) => OryksaClient(
+  /// A client that answers like the ORYKSA API (no network). [launcher] is sent as
+  /// `launcher` in the agent (1.2.1); null leaves it out, as an older server.
+  OryksaClient fakeClient({bool voice = true, bool agentFails = false, List<Map<String, dynamic>>? sent, Object? launcher}) => OryksaClient(
         token: 'oryk_cs_test',
         httpClient: MockClient((req) async {
           final json = {'content-type': 'application/json; charset=utf-8'};
@@ -30,6 +32,7 @@ void main() {
                     'business': 'Velas da Sofia',
                     'greeting': {'en': 'Hi! How can I help?', 'pt': 'Olá! Em que posso ajudar?', 'br': 'Oi! Como posso ajudar?'},
                     'voice_replies': voice,
+                    if (launcher != null) 'launcher': launcher,
                   })),
                   200,
                   headers: json);
@@ -256,6 +259,206 @@ void main() {
     });
   });
 
+  /// The company logo in the bubble (1.2.1): the business picks it in the ORYKSA
+  /// panel, the bubble shows it whole with the business name, the chat keeps the AI.
+  group('bubble image (1.2.1)', () {
+    const tuga = {'icon': 'logo', 'image': logo, 'label': 'TugaFreela'};
+    Finder inBubble(Finder f) => find.descendant(of: find.byType(OryksaTabBubble), matching: f);
+    Finder inChat(Finder f) => find.descendant(of: find.byType(OryksaChat), matching: f);
+    final white = find.byWidgetPredicate((w) => w is ColoredBox && w.color == Colors.white);
+    // The room around a logo: 12% of the photo inside the ring (64 dp bubble).
+    const size = 64.0;
+    const pad = (size - 2 * (size * .065 + size * .05)) * .12;
+    // A 1x1 PNG, as an image of the app.
+    final mine = MemoryImage(base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+
+    testWidgets('company logo from the panel: the whole logo, the business name under it, the chat keeps the AI', (tester) async {
+      final handle = tester.ensureSemantics();
+      await setSize(tester, const Size(400, 800));
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(launcher: tuga), lang: 'en', showLabel: true))));
+      await tester.pump(); // the agent arrives; the logo is still loading
+      expect(photoOf(logo), findsOneWidget);
+      expect(tester.widget<Image>(photoOf(logo)).fit, BoxFit.contain);
+      expect(photoOf(photo), findsNothing);
+      expect(inBubble(white), findsOneWidget); // on white
+      expect(tester.widget<Padding>(find.descendant(of: inBubble(white), matching: find.byType(Padding)).first).padding, const EdgeInsets.all(pad));
+      await tester.pumpAndSettle();
+      expect(find.text('TugaFreela'), findsOneWidget);
+      expect(find.text('Sofia'), findsNothing);
+      expect(find.bySemanticsLabel('Talk to Sofia'), findsOneWidget); // the chat opens with the AI
+      expect(tester.widget<Tooltip>(inBubble(find.byType(Tooltip))).message, 'Talk to Sofia');
+
+      await tester.tap(find.byType(OryksaTabBubble));
+      await tester.pumpAndSettle();
+      expect(find.byType(OryksaChat), findsOneWidget);
+      expect(find.text('SOFIA'), findsOneWidget);
+      expect(inChat(photoOf(photo)), findsWidgets);
+      expect(inChat(photoOf(logo)), findsNothing);
+      expect(inChat(find.text('TugaFreela')), findsNothing);
+      handle.dispose();
+    });
+
+    testWidgets('older server without launcher: the photo of the AI and its name, as 1.2.0', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(), lang: 'en', showLabel: true))));
+      await tester.pump();
+      expect(photoOf(photo), findsOneWidget);
+      expect(tester.widget<Image>(photoOf(photo)).fit, BoxFit.cover);
+      expect(inBubble(white), findsNothing);
+      await tester.pumpAndSettle();
+      expect(find.text('Sofia'), findsOneWidget);
+      expect(find.bySemanticsLabel('Talk to Sofia'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('launcher "ai", or "logo" with no image: the photo of the AI', (tester) async {
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(
+          client: fakeClient(launcher: {'icon': 'ai', 'image': 'https://app.oryksa.com/static/avatars/other.jpg', 'label': 'Sofia'}), lang: 'en', showLabel: true))));
+      await tester.pump();
+      expect(tester.widget<Image>(photoOf(photo)).fit, BoxFit.cover);
+      expect(inBubble(white), findsNothing);
+      await tester.pumpAndSettle();
+      expect(find.text('Sofia'), findsOneWidget);
+
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(launcher: {'icon': 'logo', 'label': 'TugaFreela'}), lang: 'en', showLabel: true))));
+      await tester.pump();
+      expect(tester.widget<Image>(photoOf(photo)).fit, BoxFit.cover);
+      expect(inBubble(white), findsNothing);
+      await tester.pumpAndSettle();
+      expect(find.text('TugaFreela'), findsOneWidget);
+    });
+
+    testWidgets('image: of the app wins over the logo of the panel', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(launcher: tuga), lang: 'en', showLabel: true, image: mine))));
+      await tester.pumpAndSettle();
+      final img = tester.widget<Image>(inBubble(find.byType(Image)));
+      expect(img.image, same(mine));
+      expect(img.fit, BoxFit.contain);
+      expect(photoOf(logo), findsNothing);
+      expect(photoOf(photo), findsNothing);
+      expect(inBubble(white), findsOneWidget);
+      expect(tester.widget<Padding>(find.descendant(of: inBubble(white), matching: find.byType(Padding)).first).padding, const EdgeInsets.all(pad));
+      expect(find.text('TugaFreela'), findsOneWidget);
+      expect(find.bySemanticsLabel('Talk to Sofia'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('image: also wins over the photo of the AI, and shows before the agent loads', (tester) async {
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(agentFails: true), lang: 'en', image: mine))));
+      expect(tester.widget<Image>(inBubble(find.byType(Image))).image, same(mine));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Image>(inBubble(find.byType(Image))).image, same(mine));
+      expect(photoOf(photo), findsNothing);
+    });
+
+    testWidgets('label: wins over the label of the panel', (tester) async {
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(launcher: tuga), lang: 'en', showLabel: true, label: 'Help'))));
+      await tester.pumpAndSettle();
+      expect(find.text('Help'), findsOneWidget);
+      expect(find.text('TugaFreela'), findsNothing);
+      expect(find.text('Sofia'), findsNothing);
+    });
+
+    testWidgets('a logo that does not load falls back to the placeholder', (tester) async {
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(launcher: tuga), lang: 'en'))));
+      await tester.pumpAndSettle(); // the test has no network: the logo fails
+      expect(inBubble(find.byIcon(Icons.chat_bubble_rounded)), findsOneWidget);
+      expect(inBubble(white), findsNothing);
+    });
+
+    testWidgets('OryksaBottomBar: the panel logo and name, bubbleImage and bubbleLabel', (tester) async {
+      await setSize(tester, const Size(400, 800));
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(app(const SizedBox(),
+          bar: OryksaBottomBar(client: fakeClient(launcher: tuga), lang: 'en', selectedIndex: 0, onDestinationSelected: (_) {}, destinations: tabs)));
+      await tester.pump();
+      expect(tester.widget<Image>(photoOf(logo)).fit, BoxFit.contain);
+      await tester.pumpAndSettle();
+      expect(find.text('TugaFreela'), findsOneWidget);
+      expect(find.bySemanticsLabel('Talk to Sofia'), findsOneWidget);
+
+      await tester.pumpWidget(app(const SizedBox(),
+          bar: OryksaBottomBar(
+              client: fakeClient(launcher: tuga), lang: 'en', selectedIndex: 0, onDestinationSelected: (_) {}, destinations: tabs, bubbleImage: mine, bubbleLabel: 'Help')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<OryksaTabBubble>(find.byType(OryksaTabBubble)).image, same(mine));
+      expect(tester.widget<Image>(inBubble(find.byType(Image))).image, same(mine));
+      expect(photoOf(logo), findsNothing);
+      expect(find.text('Help'), findsOneWidget);
+      expect(find.text('TugaFreela'), findsNothing);
+      expect(find.bySemanticsLabel('Talk to Sofia'), findsOneWidget);
+      handle.dispose();
+    });
+  });
+
+  group('OryksaAgent launcher (1.2.1)', () {
+    OryksaAgent parse(Object? launcher) => OryksaAgent.fromJson({'name': 'Manuel', 'avatar': photo, if (launcher != null) 'launcher': launcher});
+
+    test('reads the launcher of the agent', () {
+      final logoAgent = parse({'icon': 'logo', 'image': logo, 'label': 'TugaFreela'});
+      expect(logoAgent.launcherIcon, 'logo');
+      expect(logoAgent.launcherImage, logo);
+      expect(logoAgent.launcherLabel, 'TugaFreela');
+      expect(logoAgent.name, 'Manuel'); // the chat keeps the AI
+      expect(logoAgent.avatar, photo);
+
+      final aiAgent = parse({'icon': 'ai', 'image': photo, 'label': 'Manuel'});
+      expect(aiAgent.launcherIcon, 'ai');
+      expect(aiAgent.launcherImage, photo);
+      expect(aiAgent.launcherLabel, 'Manuel');
+
+      // the whole JSON as it comes from the server
+      final fromServer = OryksaAgent.fromJson(jsonDecode(jsonEncode({'name': 'Manuel', 'avatar': photo, 'launcher': {'icon': 'logo', 'image': logo, 'label': 'TugaFreela'}})) as Map<String, dynamic>);
+      expect(fromServer.launcherIcon, 'logo');
+      expect(fromServer.launcherImage, logo);
+      expect(fromServer.launcherLabel, 'TugaFreela');
+    });
+
+    test('no launcher (older server): the defaults of 1.2.0', () {
+      final a = parse(null);
+      expect(a.launcherIcon, 'ai');
+      expect(a.launcherImage, isNull);
+      expect(a.launcherLabel, isNull);
+      const b = OryksaAgent(name: 'Manuel', avatar: photo); // the const constructor still works
+      expect(b.launcherIcon, 'ai');
+      expect(b.launcherImage, isNull);
+      expect(b.launcherLabel, isNull);
+    });
+
+    test('survives garbage', () {
+      for (final bad in <Object>['logo', 42, true, ['logo', logo], <String, dynamic>{}]) {
+        final a = parse(bad);
+        expect(a.launcherIcon, 'ai', reason: '$bad');
+        expect(a.launcherImage, isNull, reason: '$bad');
+        expect(a.launcherLabel, isNull, reason: '$bad');
+        expect(a.name, 'Manuel');
+      }
+      final noImage = parse({'icon': 'logo', 'label': 'TugaFreela'});
+      expect(noImage.launcherIcon, 'logo');
+      expect(noImage.launcherImage, isNull);
+      expect(noImage.launcherLabel, 'TugaFreela');
+
+      final wrongTypes = parse({'icon': 7, 'image': 3.5, 'label': ['x']});
+      expect(wrongTypes.launcherIcon, 'ai');
+      expect(wrongTypes.launcherImage, isNull);
+      expect(wrongTypes.launcherLabel, isNull);
+
+      final blanks = parse({'icon': ' LOGO ', 'image': '   ', 'label': ''});
+      expect(blanks.launcherIcon, 'logo');
+      expect(blanks.launcherImage, isNull);
+      expect(blanks.launcherLabel, isNull);
+
+      final nulls = parse({'icon': null, 'image': null, 'label': null});
+      expect(nulls.launcherIcon, 'ai');
+      expect(nulls.launcherImage, isNull);
+      expect(nulls.launcherLabel, isNull);
+
+      expect(parse({'icon': 'banana', 'image': logo}).launcherIcon, 'ai');
+      expect(parse({'image': logo}).launcherIcon, 'ai');
+    });
+  });
+
   group('voice from the chat', () {
     setUp(() {
       final m = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -290,6 +493,28 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(OryksaVoiceScreen), findsNothing);
       expect(find.byType(OryksaChat), findsOneWidget); // back in the chat
+    });
+
+    testWidgets('with the company logo in the bubble, the voice screen keeps the photo and name of the AI', (tester) async {
+      await setSize(tester, const Size(400, 800));
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(
+          client: fakeClient(launcher: {'icon': 'logo', 'image': logo, 'label': 'TugaFreela'}), lang: 'en', showLabel: true))));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(OryksaTabBubble));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Talk by voice'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      final voiceScreen = find.byType(OryksaVoiceScreen);
+      expect(voiceScreen, findsOneWidget);
+      expect(find.descendant(of: voiceScreen, matching: photoOf(photo)), findsWidgets);
+      expect(find.descendant(of: voiceScreen, matching: photoOf(logo)), findsNothing);
+      expect(find.descendant(of: voiceScreen, matching: find.text('Sofia')), findsOneWidget);
+      expect(find.descendant(of: voiceScreen, matching: find.text('TugaFreela')), findsNothing);
+      await tester.tap(find.byTooltip('Close').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(OryksaVoiceScreen), findsNothing);
     });
 
     testWidgets('no microphone when the plan has no voice', (tester) async {

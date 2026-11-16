@@ -63,6 +63,8 @@ floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 * Les lecteurs d'écran annoncent "Talk to Sofia" ("Falar com Sofia", "Hablar con Sofia", plus "new message" quand il y en a un). Les apps de droite à gauche ont le panneau latéral à gauche.
 * Ouvrez le même chat depuis n'importe où avec `showOryksaChatScreen(context, client: client)`.
 
+**Photo de l'IA ou logo de l'entreprise (1.2.1).** Par défaut, la bulle affiche la photo de votre IA. Pour afficher plutôt le logo de votre entreprise, choisissez "Logo de l'entreprise" dans le panneau ORYKSA (Connecteurs > Chat du site) : la bulle affiche le logo en entier sur fond blanc, avec le nom de votre entreprise en dessous. Le chat qui s'ouvre garde la photo et le nom de votre IA. Votre app peut aussi imposer une image avec `image:` sur `OryksaTabBubble` (ou `bubbleImage:` sur `OryksaBottomBar`), par exemple `bubbleImage: const AssetImage('assets/logo.png')`.
+
 ## Voix et contexte de l'app (1.1)
 
 Le chat affiche un micro quand votre forfait inclut la voix. Il ouvre l'écran vocal avec le même comportement que l'app ORYKSA : le micro reste ouvert pendant qu'elle parle et seule une voix humaine l'interrompt (la frappe au clavier, la télévision et son propre écho ne l'interrompent pas) ; elle s'arrête sur le mot et le texte reste dans le chat ; à un chuchotement, elle répond en chuchotant ; si sa voix échoue, le texte est affiché (jamais une voix robotique).

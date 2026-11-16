@@ -63,6 +63,8 @@ floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 * Screen readers hear "Talk to Sofia" ("Falar com Sofia", "Hablar con Sofia", plus "new message" when there is one). Right-to-left apps get the side panel on the left.
 * Open the same chat from anywhere with `showOryksaChatScreen(context, client: client)`.
 
+**Photo of the AI or company logo (1.2.1).** By default the bubble shows the photo of your AI. To show your company logo instead, pick "Company logo" in the ORYKSA panel (Connectors > Website chat): the bubble shows the whole logo on white, with the name of your business under it. The chat that opens keeps the photo and name of your AI. Your app can also force an image with `image:` on `OryksaTabBubble` (or `bubbleImage:` on `OryksaBottomBar`), for example `bubbleImage: const AssetImage('assets/logo.png')`.
+
 ## Voice and app context (1.1)
 
 The chat shows a microphone when your plan has voice. It opens the voice screen with the same behaviour as the ORYKSA app: the microphone stays open while she speaks and only a human voice cuts her off (typing, TV and her own echo do not); she stops on the word and the text stays in the chat; a whisper gets a whispered answer; if her voice fails, the text is shown (never a robot voice).

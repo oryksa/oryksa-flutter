@@ -8,8 +8,11 @@ import 'models.dart';
 /// the same as in the ORYKSA app. Tapping it opens the chat (with voice) with
 /// [showOryksaChatScreen]: a full screen on phones, a side panel on wide screens.
 ///
-/// The name and photo come from "Your AI" in the ORYKSA account. Use it inside
-/// [OryksaBottomBar], or put it in the middle of your own bar (see the README).
+/// The name and photo come from "Your AI" in the ORYKSA account. When the business
+/// picks "Company logo" in the ORYKSA panel (Connectors > Website chat), the bubble
+/// shows the company logo and the business name instead; the chat that opens keeps
+/// the photo and name of the AI. Use it inside [OryksaBottomBar], or put it in the
+/// middle of your own bar (see the README).
 class OryksaTabBubble extends StatefulWidget {
   /// Creates the bubble.
   const OryksaTabBubble({
@@ -28,6 +31,7 @@ class OryksaTabBubble extends StatefulWidget {
     this.borderColor,
     this.onOpen,
     this.onTap,
+    this.image,
   });
 
   /// Client with the session token.
@@ -57,10 +61,13 @@ class OryksaTabBubble extends StatefulWidget {
   /// `message.replied` webhook) and clears it in [onOpen].
   final bool unread;
 
-  /// Shows the name of the AI (or [label]) under the bubble.
+  /// Shows the name of the AI (or the business name with the company logo, or
+  /// [label]) under the bubble.
   final bool showLabel;
 
-  /// Text under the bubble. The name of the AI by default.
+  /// Text under the bubble. By default the label chosen in the ORYKSA panel
+  /// ([OryksaAgent.launcherLabel]: the business name with the company logo),
+  /// else the name of the AI.
   final String? label;
 
   /// Style of the text under the bubble.
@@ -75,6 +82,12 @@ class OryksaTabBubble extends StatefulWidget {
 
   /// Replaces what the tap does (by default it opens the chat).
   final VoidCallback? onTap;
+
+  /// Image shown in the bubble, over what the ORYKSA panel chose, for example
+  /// `AssetImage('assets/logo.png')`. It is drawn whole (not cropped) on white, as
+  /// a logo. Null: the company logo when the business picked it in the ORYKSA
+  /// panel, else the photo of the AI. The chat that opens keeps the photo of the AI.
+  final ImageProvider? image;
 
   @override
   State<OryksaTabBubble> createState() => _OryksaTabBubbleState();
@@ -136,6 +149,35 @@ class _OryksaTabBubbleState extends State<OryksaTabBubble> {
     final photo = size - 2 * (border + ring);
     final dot = size * .22;
 
+    // What the bubble shows: the image of the app, else the company logo chosen in
+    // the ORYKSA panel, else the photo of the AI (as 1.2.0). The chat keeps the AI.
+    final agent = _agent;
+    final logoUrl = agent != null && agent.launcherIcon == 'logo' ? agent.launcherImage : null;
+    final ImageProvider? picture = widget.image ??
+        (logoUrl != null && logoUrl.isNotEmpty ? NetworkImage(logoUrl) : null) ??
+        (agent == null ? null : NetworkImage(agent.avatar));
+    final isLogo = widget.image != null || (logoUrl != null && logoUrl.isNotEmpty);
+    final placeholder = _Placeholder(color: th.soft, icon: th.accent);
+    final Widget face;
+    if (picture == null) {
+      face = placeholder;
+    } else if (isLogo) {
+      // A logo is drawn whole on white with some room around it, so a logo that is
+      // not round is not cropped. The frame builder does not run on an error, so then
+      // the placeholder fills the circle, as for the photo.
+      face = Image(
+        image: picture,
+        fit: BoxFit.contain,
+        frameBuilder: (_, child, __, ___) => ColoredBox(
+          color: Colors.white,
+          child: Padding(padding: EdgeInsets.all(photo * .12), child: child),
+        ),
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    } else {
+      face = Image(image: picture, fit: BoxFit.cover, errorBuilder: (_, __, ___) => placeholder);
+    }
+
     final circle = SizedBox(
       width: size,
       height: size,
@@ -155,14 +197,7 @@ class _OryksaTabBubbleState extends State<OryksaTabBubble> {
             boxShadow: [BoxShadow(color: th.accent.withValues(alpha: .38), blurRadius: 14, offset: const Offset(0, 6))],
           ),
           child: ClipOval(
-            child: SizedBox(
-              width: photo,
-              height: photo,
-              child: _agent == null
-                  ? _Placeholder(color: th.soft, icon: th.accent)
-                  : Image.network(_agent!.avatar,
-                      fit: BoxFit.cover, errorBuilder: (_, __, ___) => _Placeholder(color: th.soft, icon: th.accent)),
-            ),
+            child: SizedBox(width: photo, height: photo, child: face),
           ),
         ),
         Positioned.fill(
@@ -191,7 +226,8 @@ class _OryksaTabBubbleState extends State<OryksaTabBubble> {
       ]),
     );
 
-    final label = widget.label ?? _agent?.name ?? '';
+    final launcherLabel = agent?.launcherLabel;
+    final label = widget.label ?? (launcherLabel != null && launcherLabel.isNotEmpty ? launcherLabel : null) ?? agent?.name ?? '';
     return Semantics(
       container: true,
       button: true,
@@ -271,6 +307,7 @@ class OryksaBottomBar extends StatelessWidget {
     this.onBubbleOpen,
     this.onBubbleTap,
     this.bubbleLabel,
+    this.bubbleImage,
     this.showBubbleLabel = true,
     this.backgroundColor,
     this.indicatorColor,
@@ -316,8 +353,14 @@ class OryksaBottomBar extends StatelessWidget {
   /// Replaces what a tap on the bubble does (by default it opens the chat).
   final VoidCallback? onBubbleTap;
 
-  /// Text under the bubble. The name of the AI by default.
+  /// Text under the bubble. By default the label chosen in the ORYKSA panel (the
+  /// business name with the company logo), else the name of the AI.
   final String? bubbleLabel;
+
+  /// Image shown in the bubble, over what the ORYKSA panel chose (see
+  /// [OryksaTabBubble.image]), for example `AssetImage('assets/logo.png')`. Null:
+  /// the company logo or the photo of the AI, as chosen in the ORYKSA panel.
+  final ImageProvider? bubbleImage;
 
   /// Shows the text under the bubble.
   final bool showBubbleLabel;
@@ -422,6 +465,7 @@ class OryksaBottomBar extends StatelessWidget {
           unread: unread,
           showLabel: showBubbleLabel,
           label: bubbleLabel,
+          image: bubbleImage,
           borderColor: bg,
           onOpen: onBubbleOpen,
           onTap: onBubbleTap,

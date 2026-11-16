@@ -14,6 +14,9 @@ class OryksaAgent {
     this.conversationId,
     this.voice,
     this.language,
+    this.launcherIcon = 'ai',
+    this.launcherImage,
+    this.launcherLabel,
   });
 
   /// Reads the `GET /v1/client/agent` response.
@@ -23,6 +26,12 @@ class OryksaAgent {
     Map<String, List<String>> list(dynamic v) => v is Map
         ? v.map((k, x) => MapEntry('$k', x is List ? x.map((e) => '$e').toList() : <String>[]))
         : const <String, List<String>>{};
+    String? text(dynamic v) {
+      if (v is! String) return null;
+      final s = v.trim();
+      return s.isEmpty ? null : s;
+    }
+    final launcher = j['launcher'] is Map ? j['launcher'] as Map : const {};
     return OryksaAgent(
       name: (j['name'] ?? 'ORYKSA').toString(),
       avatar: (j['avatar'] ?? 'https://oryksa.com/assets/img/avatar_official_oryksa.png').toString(),
@@ -34,6 +43,9 @@ class OryksaAgent {
       conversationId: j['conversation_id']?.toString(),
       voice: j['voice']?.toString(),
       language: j['language']?.toString(),
+      launcherIcon: text(launcher['icon'])?.toLowerCase() == 'logo' ? 'logo' : 'ai',
+      launcherImage: text(launcher['image']),
+      launcherLabel: text(launcher['label']),
     );
   }
 
@@ -69,6 +81,22 @@ class OryksaAgent {
 
   /// Conversation of this session.
   final String? conversationId;
+
+  /// What the business chose for the tab bar bubble in the ORYKSA panel
+  /// (Connectors > Website chat): `ai` (the photo of the AI, the default) or
+  /// `logo` (the company logo). Only the bubble changes: the chat that opens
+  /// always shows the photo and name of the AI.
+  final String launcherIcon;
+
+  /// Image for the tab bar bubble: the photo of the AI when [launcherIcon] is
+  /// `ai`, the company logo (a square PNG, maybe with transparency) when it is
+  /// `logo`. Null when the server does not send it (older servers).
+  final String? launcherImage;
+
+  /// Text under the tab bar bubble: the name of the AI when [launcherIcon] is
+  /// `ai`, the business name when it is `logo`. Null when the server does not
+  /// send it (older servers).
+  final String? launcherLabel;
 
   /// Picks the text for [lang] with fallbacks (br uses pt, then en).
   static T? pick<T>(Map<String, T> m, String lang) =>
