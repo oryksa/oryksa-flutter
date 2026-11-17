@@ -101,7 +101,12 @@ class OryksaChat extends StatefulWidget {
     this.appContext,
     this.voice = true,
     this.onPickImage,
+    this.startInVoice = false,
   });
+
+  /// Opens the voice screen as soon as the chat is ready (when the plan has voice). The
+  /// tab bar bubble sets it from the ORYKSA panel choice ([OryksaAgent.openMode]).
+  final bool startInVoice;
 
   /// Client with the session token.
   final OryksaClient client;
@@ -139,6 +144,7 @@ class _Msg {
 }
 
 class _OryksaChatState extends State<OryksaChat> {
+  bool _autoVoice = false;
   final _input = TextEditingController();
   final _scroll = ScrollController();
   final List<_Msg> _msgs = [];
@@ -166,6 +172,12 @@ class _OryksaChatState extends State<OryksaChat> {
       if (!mounted) return;
       setState(() {
         _agent = a;
+        if (widget.startInVoice && widget.voice && a.voiceReplies && !_autoVoice) {
+          _autoVoice = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _openVoice();
+          });
+        }
         if (hist.isNotEmpty) {
           _msgs.addAll(hist.map((m) => _Msg(m.role == 'user' ? 'user' : 'assistant', m.content)));
         } else {
@@ -523,6 +535,7 @@ Future<void> showOryksaChatScreen(
   bool voice = true,
   Future<OryksaImage?> Function()? onPickImage,
   double panelWidth = 420,
+  bool startInVoice = false,
 }) {
   final l = oryksaLangOf(context, lang);
   final th = theme ?? OryksaChatTheme.of(context);
@@ -534,7 +547,7 @@ Future<void> showOryksaChatScreen(
         backgroundColor: th.background,
         body: SafeArea(
           child: OryksaChat(
-              client: client, lang: l, theme: th, appContext: appContext, voice: voice, onPickImage: onPickImage, onClose: () => Navigator.of(ctx).maybePop()),
+              client: client, lang: l, theme: th, appContext: appContext, voice: voice, onPickImage: onPickImage, startInVoice: startInVoice, onClose: () => Navigator.of(ctx).maybePop()),
         ),
       ),
     ));
@@ -570,7 +583,7 @@ Future<void> showOryksaChatScreen(
                 child: Padding(
                   padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
                   child: OryksaChat(
-                      client: client, lang: l, theme: th, appContext: appContext, voice: voice, onPickImage: onPickImage, onClose: () => Navigator.of(ctx).pop()),
+                      client: client, lang: l, theme: th, appContext: appContext, voice: voice, onPickImage: onPickImage, startInVoice: startInVoice, onClose: () => Navigator.of(ctx).pop()),
                 ),
               ),
             ),

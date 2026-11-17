@@ -17,6 +17,7 @@ class OryksaAgent {
     this.launcherIcon = 'ai',
     this.launcherImage,
     this.launcherLabel,
+    this.openMode = 'voice',
   });
 
   /// Reads the `GET /v1/client/agent` response.
@@ -46,6 +47,7 @@ class OryksaAgent {
       launcherIcon: text(launcher['icon'])?.toLowerCase() == 'logo' ? 'logo' : 'ai',
       launcherImage: text(launcher['image']),
       launcherLabel: text(launcher['label']),
+      openMode: text(j['open_mode'])?.toLowerCase() == 'chat' ? 'chat' : 'voice',
     );
   }
 
@@ -98,6 +100,11 @@ class OryksaAgent {
   /// send it (older servers).
   final String? launcherLabel;
 
+  /// What the bubble opens by default, chosen by the business in the ORYKSA panel
+  /// (Connectors > Website chat > Open in): `voice` (the voice screen, the default) or
+  /// `chat` (the text chat). The customer can always switch inside.
+  final String openMode;
+
   /// Picks the text for [lang] with fallbacks (br uses pt, then en).
   static T? pick<T>(Map<String, T> m, String lang) =>
       m[lang] ?? (lang == 'br' ? m['pt'] : null) ?? m['en'] ?? (m.isEmpty ? null : m.values.first);
@@ -122,7 +129,7 @@ class OryksaMessage {
 /// Answer of `send`: `replied` with the text, or `pending` while the AI is still writing.
 class OryksaReply {
   /// Creates a reply.
-  const OryksaReply({required this.status, this.reply, this.conversationId, this.speech, this.whisper = false});
+  const OryksaReply({required this.status, this.reply, this.conversationId, this.speech, this.whisper = false, this.collecting});
 
   /// Reads a `chat_reply` object.
   factory OryksaReply.fromJson(Map<String, dynamic> j) => OryksaReply(
@@ -131,7 +138,13 @@ class OryksaReply {
         conversationId: j['conversation_id']?.toString(),
         speech: j['speech']?.toString(),
         whisper: j['whisper'] == true,
+        collecting: (j['collecting'] is String && (j['collecting'] as String).trim().isNotEmpty) ? (j['collecting'] as String).trim() : null,
       );
+
+  /// The AI is asking the customer for a contact detail before answering (`email`, `phone`,
+  /// `name` or `details`, as set in Connectors > Website chat). Null otherwise. The voice
+  /// screen shows a text box so the customer can type it.
+  final String? collecting;
 
   /// `replied` or `pending`.
   final String status;

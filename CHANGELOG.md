@@ -1,3 +1,18 @@
+## 1.2.2
+
+* **Android voice fixed.** On Android the voice screen got stuck on "I'm listening": the AI's spoken answer never played and the microphone stopped after her first reply. Two causes, both fixed:
+  * Her voice now plays from a temporary file. Playing bytes from memory goes through a local `http://127.0.0.1` proxy, which Android 9+ blocks unless the app allows cleartext traffic. No change is needed in your app (web keeps playing from memory).
+  * The microphone no longer pauses when her voice starts (`audioInterruption: none`; record_android 1.5+ paused it for good). If the microphone ever stops delivering sound, it reopens by itself.
+* **Open in voice or chat.** The bubble opens what the business chose in the ORYKSA panel (Connectors > Website chat > Open in). The default is the voice screen. `OryksaAgent.openMode` (`voice` or `chat`), `showOryksaChatScreen(startInVoice:)` and `OryksaChat(startInVoice:)`. Closing the voice screen leaves the customer in the chat. With no voice in the plan the chat opens as before.
+* **Type it in the voice screen.** When the AI asks for an e-mail, a phone number or a name, the voice screen shows a text box to type it (`OryksaReply.collecting`, `OryksaVoiceController.sendText`).
+* **The halo breathes** while the conversation is open and grows with the customer's voice (`OryksaVoiceController.level`).
+* **Faster and steadier turns:**
+  * the closing silence is cut before the upload;
+  * a pending reply is checked every 0.5 s (was 1.5 s);
+  * a cough or the TV while she is thinking no longer throws away the answer on its way;
+  * noise transcribed as "." is not sent as a message.
+* Needs `record` 6.2 or newer.
+
 ## 1.2.1
 
 * **Company logo in the tab bar bubble.** The business now chooses in the ORYKSA panel (Connectors > Website chat) whether the bubble shows the photo of the AI or the company logo. With the logo, the bubble shows the whole logo on white (not cropped) and the business name under it. The chat and the voice screen that open on tap keep the photo and name of the AI, and screen readers still hear "Talk to" + the name of the AI.

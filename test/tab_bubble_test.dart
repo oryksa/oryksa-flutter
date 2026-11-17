@@ -18,7 +18,7 @@ void main() {
 
   /// A client that answers like the ORYKSA API (no network). [launcher] is sent as
   /// `launcher` in the agent (1.2.1); null leaves it out, as an older server.
-  OryksaClient fakeClient({bool voice = true, bool agentFails = false, List<Map<String, dynamic>>? sent, Object? launcher}) => OryksaClient(
+  OryksaClient fakeClient({bool voice = true, bool agentFails = false, List<Map<String, dynamic>>? sent, Object? launcher, String? openMode = 'chat'}) => OryksaClient(
         token: 'oryk_cs_test',
         httpClient: MockClient((req) async {
           final json = {'content-type': 'application/json; charset=utf-8'};
@@ -33,6 +33,7 @@ void main() {
                     'greeting': {'en': 'Hi! How can I help?', 'pt': 'Olá! Em que posso ajudar?', 'br': 'Oi! Como posso ajudar?'},
                     'voice_replies': voice,
                     if (launcher != null) 'launcher': launcher,
+                    if (openMode != null) 'open_mode': openMode, // 1.2.2: null leaves it out (older server: voice)
                   })),
                   200,
                   headers: json);
@@ -477,6 +478,47 @@ void main() {
       }
     });
 
+    testWidgets('1.2.2: the panel says voice (also the default): the bubble opens straight in the voice screen', (tester) async {
+      for (final mode in <String?>['voice', null]) {
+        await setSize(tester, const Size(400, 800));
+        await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(openMode: mode), lang: 'en'))));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(OryksaTabBubble));
+        for (var i = 0; i < 30 && find.byType(OryksaVoiceScreen).evaluate().isEmpty; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.byType(OryksaVoiceScreen), findsOneWidget, reason: 'open_mode=$mode, chat=${find.byType(OryksaChat).evaluate().length}');
+        await tester.tap(find.descendant(of: find.byType(OryksaVoiceScreen), matching: find.byTooltip('Close')).first);
+        for (var i = 0; i < 20 && find.byType(OryksaVoiceScreen).evaluate().isNotEmpty; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.byType(OryksaVoiceScreen), findsNothing);
+        expect(find.byType(OryksaChat), findsOneWidget); // closing the voice leaves the customer in the chat
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+    });
+
+    testWidgets('1.2.2: the panel says chat: the bubble opens the text chat', (tester) async {
+      await setSize(tester, const Size(400, 800));
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(openMode: 'chat'), lang: 'en'))));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(OryksaTabBubble));
+      await tester.pumpAndSettle();
+      expect(find.byType(OryksaChat), findsOneWidget);
+      expect(find.byType(OryksaVoiceScreen), findsNothing);
+    });
+
+    testWidgets('1.2.2: voice mode but the plan has no voice: the text chat', (tester) async {
+      await setSize(tester, const Size(400, 800));
+      await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(openMode: 'voice', voice: false), lang: 'en'))));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(OryksaTabBubble));
+      await tester.pumpAndSettle();
+      expect(find.byType(OryksaChat), findsOneWidget);
+      expect(find.byType(OryksaVoiceScreen), findsNothing);
+    });
+
     testWidgets('the microphone in the chat opens the voice screen', (tester) async {
       await setSize(tester, const Size(400, 800));
       await tester.pumpWidget(app(Center(child: OryksaTabBubble(client: fakeClient(), lang: 'en'))));
@@ -524,6 +566,18 @@ void main() {
       await tester.tap(find.byType(OryksaTabBubble));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Talk by voice'), findsNothing);
+    });
+  });
+  group('1.2.2 models', () {
+    test('open_mode: voice by default, chat when the panel says so', () {
+      expect(OryksaAgent.fromJson({'name': 'Manuel', 'avatar': photo}).openMode, 'voice');
+      expect(OryksaAgent.fromJson({'name': 'Manuel', 'avatar': photo, 'open_mode': 'chat'}).openMode, 'chat');
+      expect(OryksaAgent.fromJson({'name': 'Manuel', 'avatar': photo, 'open_mode': 'xyz'}).openMode, 'voice');
+    });
+    test('collecting: the detail the AI is asking for', () {
+      expect(OryksaReply.fromJson({'status': 'replied', 'reply': 'O teu email?', 'collecting': 'email'}).collecting, 'email');
+      expect(OryksaReply.fromJson({'status': 'replied', 'reply': 'Olá'}).collecting, isNull);
+      expect(OryksaReply.fromJson({'status': 'replied', 'reply': 'Olá', 'collecting': ''}).collecting, isNull);
     });
   });
 }

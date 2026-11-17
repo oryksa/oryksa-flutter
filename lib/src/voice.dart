@@ -9,6 +9,7 @@ import 'package:record/record.dart';
 import '../vad.dart';
 import 'client.dart';
 import 'models.dart';
+import 'tts_file.dart';
 
 /// What the voice conversation is doing now.
 enum OryksaVoicePhase {
@@ -90,6 +91,18 @@ class OryksaVoiceController extends ChangeNotifier {
 
   StreamSubscription<Uint8List>? _pcmSub;
   StreamSubscription<PlayerState>? _playSub;
+  StreamSubscription<RecordState>? _recState;
+  Timer? _micWatch;
+  DateTime _lastChunk = DateTime.now();
+  bool _restarting = false;
+  String? _voiceFile;
+
+  /// Microphone level (0 to 1), smoothed: the halo of the voice screen moves with it.
+  final ValueNotifier<double> level = ValueNotifier<double>(0);
+
+  /// While the AI asks for a detail the customer should TYPE rather than say (`email`,
+  /// `phone`, `name` or `details`), the voice screen shows a text box for it. Null otherwise.
+  String? collecting;
   BytesBuilder _pcm = BytesBuilder();
   final List<Uint8List> _beforeCut = [];
   int _beforeCutBytes = 0;
@@ -149,8 +162,31 @@ class OryksaVoiceController extends ChangeNotifier {
       if (_closed || _heardSomething || _phase == OryksaVoicePhase.muted) return;
       _micIsDead();
     });
-    _set(OryksaVoicePhase.listening);
-    _pcmSub = stream.listen(_onAudio, onError: (Object _) {});
+    if (!_busy && !_speaking) _set(OryksaVoicePhase.listening);
+    _lastChunk = DateTime.now();
+    _pcmSub = stream.listen(_onAudio, onError: (Object _) => _restartMic(), onDone: _restartMic);
+    // The microphone must never die quietly (1.2.1 bug on Android: it paused when the AI's
+    // voice started and never came back, so the screen stayed on "I'm listening").
+    _recState ??= _rec.onStateChanged().listen((s) {
+      if (s == RecordState.pause && !_closed && _phase != OryksaVoicePhase.muted) {
+        _rec.resume().catchError((Object _) {});
+      }
+    }, onError: (Object _) {});
+    _micWatch ??= Timer.periodic(const Duration(seconds: 2), (_) {
+      if (_closed || _pcmSub == null || _phase == OryksaVoicePhase.muted || _restarting) return;
+      if (DateTime.now().difference(_lastChunk) > const Duration(seconds: 3)) _restartMic();
+    });
+  }
+
+  Future<void> _restartMic() async {
+    if (_restarting || _closed || _phase == OryksaVoicePhase.muted) return;
+    _restarting = true;
+    try {
+      await _stopMic();
+      if (!_closed) await start();
+    } finally {
+      _restarting = false;
+    }
   }
 
   /// Phone speaker + conversation mode, so she can hear the customer while she
@@ -168,7 +204,8 @@ class OryksaVoiceController extends ChangeNotifier {
           contentType: AndroidAudioContentType.speech,
           usage: AndroidAudioUsage.voiceCommunication,
         ),
-        androidAudioFocusGainType: AndroidAudioFocusGainType.gainTransientMayDuck,
+        // The recorder no longer takes audio focus (see _openMic): this is what quiets other apps.
+        androidAudioFocusGainType: AndroidAudioFocusGainType.gainTransient,
       ));
       await s.setActive(true);
     } catch (_) {}
@@ -183,6 +220,10 @@ class OryksaVoiceController extends ChangeNotifier {
         echoCancel: effects,
         noiseSuppress: effects,
         autoGain: effects,
+        // Android (record_android >= 1.5): with the default `pause` the recorder takes audio
+        // focus and pauses for good as soon as anything else asks for it, and the AI's own
+        // voice (just_audio play -> AudioSession.setActive) does exactly that. Never pause.
+        audioInterruption: AudioInterruptionMode.none,
       ));
     } catch (_) {
       return null;
@@ -212,7 +253,10 @@ class OryksaVoiceController extends ChangeNotifier {
 
   void _onAudio(Uint8List chunk) {
     if (_closed || _phase == OryksaVoicePhase.muted || chunk.lengthInBytes < 2) return;
-    if (!_heardSomething && Vad.rmsOf(chunk) > 0.0005) {
+    _lastChunk = DateTime.now();
+    final rms = Vad.rmsOf(chunk);
+    level.value = level.value * .5 + rms * .5;
+    if (!_heardSomething && rms > 0.0005) {
       _heardSomething = true;
       _deadMicGuard?.cancel();
     }
@@ -227,6 +271,9 @@ class OryksaVoiceController extends ChangeNotifier {
       if (vad.feed(chunk, speaking: true).isBargeIn) _bargeIn();
       return;
     }
+    // Waiting for her answer: a cough, the TV or an "hmm" must not open a second turn
+    // (that bumped _turn and threw away the answer already on its way).
+    if (_busy) return;
 
     final step = vad.feed(chunk);
     if (step.isBargeIn) {
@@ -239,8 +286,11 @@ class OryksaVoiceController extends ChangeNotifier {
     }
     if (!step.isDone) return;
 
-    final raw = _pcm.takeBytes();
+    var raw = _pcm.takeBytes();
     _pcm = BytesBuilder();
+    // Faster answers: send the sentence without its closing silence (keep 200 ms of it).
+    final tail = (vad.quietMs - 200).clamp(0, 1 << 20) * (_sr * 2 ~/ 1000);
+    if (tail > 0 && raw.length - tail > _sr) raw = Uint8List.sublistView(raw, 0, raw.length - tail);
     final whisper = vad.foiSussurro;
     final stats = _stats(empty: false, durMs: raw.length ~/ 32);
     vad.newTurn();
@@ -309,12 +359,35 @@ class OryksaVoiceController extends ChangeNotifier {
     _set(OryksaVoicePhase.thinking);
     final text = await client.transcribe(wav);
     if (_closed || my != _turn) return;
-    if (text == null || text.isEmpty) {
+    // Background noise transcribed as "." or "..." is not a message (no letter, no digit).
+    if (text == null || text.isEmpty || !_hasWords(text)) {
       unawaited(client.voiceStats({...stats, 'empty': true}));
       _busy = false;
       _set(text == null ? OryksaVoicePhase.notUnderstood : OryksaVoicePhase.listening);
       return;
     }
+    await _ask(text, my, whisper: whisper, stats: stats);
+  }
+
+  static final RegExp _wordChar = RegExp(r'[\p{L}\p{N}]', unicode: true);
+  static bool _hasWords(String s) => _wordChar.hasMatch(s);
+
+  /// Sends what the customer TYPED in the voice screen (an e-mail or a phone number the AI
+  /// asked for), and answers by voice like a spoken sentence.
+  Future<void> sendText(String text) async {
+    text = text.trim();
+    if (text.isEmpty || _closed) return;
+    if (_speaking) _bargeIn();
+    vad.newTurn();
+    _pcm = BytesBuilder();
+    final my = ++_turn;
+    _whispered = false;
+    _busy = true;
+    _set(OryksaVoicePhase.thinking);
+    await _ask(text, my, whisper: false, stats: null);
+  }
+
+  Future<void> _ask(String text, int my, {required bool whisper, Map<String, dynamic>? stats}) async {
     lastHeard = text;
     onUserText?.call(text);
     OryksaReply? r;
@@ -326,6 +399,8 @@ class OryksaVoiceController extends ChangeNotifier {
     }
     if (_closed || my != _turn) return;
     final reply = (r?.reply ?? '').trim();
+    final ask = (r?.collecting ?? '').trim().toLowerCase();
+    collecting = ask.isEmpty ? null : ask;
     if (reply.isEmpty) {
       _busy = false;
       _set(OryksaVoicePhase.notUnderstood);
@@ -362,7 +437,23 @@ class OryksaVoiceController extends ChangeNotifier {
       return;
     }
     try {
-      await _player.setAudioSource(_Mp3Source(mp3));
+      // Play from a temporary file: bytes from memory go through just_audio's http://127.0.0.1
+      // proxy on Android, which Android 9+ blocks unless the app allows cleartext traffic
+      // (1.2.1 bug: the voice never played). The web has no files: bytes from memory there.
+      final old = _voiceFile;
+      final path = await oryksaWriteVoiceFile(mp3, my);
+      if (_closed || my != _turn) {
+        await oryksaDeleteVoiceFile(path);
+        done();
+        return;
+      }
+      if (path != null) {
+        _voiceFile = path;
+        await _player.setFilePath(path);
+      } else {
+        await _player.setAudioSource(_Mp3Source(mp3));
+      }
+      if (old != null && old != path) unawaited(oryksaDeleteVoiceFile(old));
       _speaking = true;
       _set(OryksaVoicePhase.speaking);
       _playSub?.cancel();
@@ -405,21 +496,33 @@ class OryksaVoiceController extends ChangeNotifier {
     if (_closed) return;
     _closed = true;
     _turn++;
+    _micWatch?.cancel();
+    await _recState?.cancel();
+    _recState = null;
     await _stopMic();
     try {
       await _player.stop();
     } catch (_) {}
     await _playSub?.cancel();
+    await oryksaDeleteVoiceFile(_voiceFile);
+    _voiceFile = null;
+    try {
+      await (await AudioSession.instance).setActive(false); // give the audio back to other apps
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _closed = true;
     _deadMicGuard?.cancel();
+    _micWatch?.cancel();
+    _recState?.cancel();
     _pcmSub?.cancel();
     _playSub?.cancel();
+    unawaited(oryksaDeleteVoiceFile(_voiceFile));
     _rec.dispose();
     _player.dispose();
+    level.dispose();
     super.dispose();
   }
 

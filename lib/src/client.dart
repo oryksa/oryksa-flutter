@@ -171,7 +171,7 @@ class OryksaClient {
     if (r.status != 'pending') return r;
     final end = DateTime.now().add(maxWait);
     while (DateTime.now().isBefore(end)) {
-      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
       final hist = await messages();
       if (hist.isNotEmpty && hist.last.role == 'assistant') {
         return OryksaReply(status: 'replied', reply: hist.last.content, conversationId: r.conversationId, whisper: whisper);

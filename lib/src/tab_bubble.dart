@@ -127,8 +127,26 @@ class _OryksaTabBubbleState extends State<OryksaTabBubble> {
     if (_opening) return;
     _opening = true;
     try {
+      // What the bubble opens comes from the ORYKSA panel (Connectors > Website chat > Open in):
+      // the voice screen by default, or the text chat.
+      OryksaAgent? a = _agent;
+      if (a == null) {
+        try {
+          a = await widget.client.agent();
+          if (mounted) setState(() => _agent = a);
+        } catch (_) {
+          a = null;
+        }
+      }
+      if (!mounted) return;
       await showOryksaChatScreen(context,
-          client: widget.client, lang: widget.lang, theme: widget.theme, appContext: widget.appContext, voice: widget.voice, onPickImage: widget.onPickImage);
+          client: widget.client,
+          lang: widget.lang,
+          theme: widget.theme,
+          appContext: widget.appContext,
+          voice: widget.voice,
+          onPickImage: widget.onPickImage,
+          startInVoice: widget.voice && (a?.openMode ?? 'voice') == 'voice');
     } finally {
       _opening = false;
     }

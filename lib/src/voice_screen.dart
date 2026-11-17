@@ -6,6 +6,11 @@ import 'voice.dart';
 
 const Map<String, Map<String, String>> _vx = {
   'en': {
+    'typeEmail': 'Type your email',
+    'typePhone': 'Type your phone number',
+    'typeName': 'Type your name',
+    'typeDetails': 'Type it here',
+    'send': 'Send',
     'listening': "I'm listening",
     'listeningSub': 'Speak to me. You can cut me off any time.',
     'hearing': 'Go on, I am listening.',
@@ -24,6 +29,11 @@ const Map<String, Map<String, String>> _vx = {
     'close': 'Close',
   },
   'pt': {
+    'typeEmail': 'Escreve o teu email',
+    'typePhone': 'Escreve o teu telefone',
+    'typeName': 'Escreve o teu nome',
+    'typeDetails': 'Escreve aqui',
+    'send': 'Enviar',
     'listening': 'Estou a ouvir',
     'listeningSub': 'Fala comigo. Podes interromper-me quando quiseres.',
     'hearing': 'Continua, estou a ouvir.',
@@ -42,6 +52,11 @@ const Map<String, Map<String, String>> _vx = {
     'close': 'Fechar',
   },
   'br': {
+    'typeEmail': 'Digite seu e-mail',
+    'typePhone': 'Digite seu telefone',
+    'typeName': 'Digite seu nome',
+    'typeDetails': 'Digite aqui',
+    'send': 'Enviar',
     'listening': 'Estou ouvindo',
     'listeningSub': 'Fale comigo. Você pode me interromper quando quiser.',
     'hearing': 'Continue, estou ouvindo.',
@@ -60,6 +75,11 @@ const Map<String, Map<String, String>> _vx = {
     'close': 'Fechar',
   },
   'es': {
+    'typeEmail': 'Escribe tu email',
+    'typePhone': 'Escribe tu teléfono',
+    'typeName': 'Escribe tu nombre',
+    'typeDetails': 'Escríbelo aquí',
+    'send': 'Enviar',
     'listening': 'Te escucho',
     'listeningSub': 'Háblame. Puedes interrumpirme cuando quieras.',
     'hearing': 'Sigue, te escucho.',
@@ -115,6 +135,8 @@ class OryksaVoiceScreen extends StatefulWidget {
 class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTickerProviderStateMixin {
   late final AnimationController _pulse =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 1000))..repeat(reverse: true);
+  late final Listenable _haloTick = Listenable.merge([_pulse, widget.controller.level]);
+  final TextEditingController _typed = TextEditingController();
 
   OryksaVoiceController get c => widget.controller;
   Map<String, String> get t => oryksaVoiceTexts(widget.lang);
@@ -135,6 +157,7 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
     c.removeListener(_changed);
     c.close();
     _pulse.dispose();
+    _typed.dispose();
     super.dispose();
   }
 
@@ -207,6 +230,10 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
                     const SizedBox(height: 10),
                     if (c.phase == OryksaVoicePhase.hearing)
                       Text(t['tapToSend']!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11.5, color: Color(0xFFAAB0CC))),
+                    if (c.collecting != null) ...[
+                      const SizedBox(height: 14),
+                      _typeBox(th),
+                    ],
                     const SizedBox(height: 20),
                     Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       _button(muted ? Icons.mic_off_outlined : Icons.mic_none, muted ? t['unmute']! : t['mute']!, false, c.toggleMute, th),
@@ -233,16 +260,71 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
     );
   }
 
+  /// The AI asked for a contact detail: typing it is easier than saying it (e-mails!).
+  Widget _typeBox(OryksaChatTheme th) {
+    final ask = c.collecting ?? 'details';
+    final hint = switch (ask) {
+      'email' => t['typeEmail']!,
+      'phone' => t['typePhone']!,
+      'name' => t['typeName']!,
+      _ => t['typeDetails']!,
+    };
+    void send() {
+      final v = _typed.text.trim();
+      if (v.isEmpty) return;
+      _typed.clear();
+      FocusScope.of(context).unfocus();
+      c.sendText(v);
+    }
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 420),
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: th.background,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: th.line, width: 1.2),
+      ),
+      child: Row(children: [
+        Expanded(
+          child: TextField(
+            controller: _typed,
+            autofocus: true,
+            keyboardType: ask == 'email'
+                ? TextInputType.emailAddress
+                : ask == 'phone'
+                    ? TextInputType.phone
+                    : TextInputType.text,
+            autocorrect: false,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => send(),
+            style: TextStyle(fontSize: 15, color: th.ink),
+            decoration: InputDecoration(hintText: hint, hintStyle: TextStyle(color: th.muted), border: InputBorder.none),
+          ),
+        ),
+        IconButton(onPressed: send, tooltip: t['send'], icon: Icon(Icons.send_rounded, color: th.accent)),
+      ]),
+    );
+  }
+
   Widget _halo(OryksaChatTheme th) => SizedBox(
         width: 250,
         height: 250,
         child: AnimatedBuilder(
-          animation: _pulse,
+          animation: _haloTick,
           builder: (_, child) {
-            final active = c.phase == OryksaVoicePhase.hearing || c.phase == OryksaVoicePhase.speaking;
+            // The halo always breathes while the conversation is open, and grows with the
+            // customer's voice (1.2.1 only moved it while hearing or speaking).
+            final voice = (c.level.value / .12).clamp(0.0, 1.0);
             Widget ring(double s, double op, double delay) {
               final v = ((_pulse.value + delay) % 1.0);
-              final k = active ? 1 + .07 * Curves.easeInOut.transform(v < .5 ? v * 2 : (1 - v) * 2) : 1.0;
+              final wave = Curves.easeInOut.transform(v < .5 ? v * 2 : (1 - v) * 2);
+              final k = switch (c.phase) {
+                OryksaVoicePhase.speaking => 1 + .08 * wave,
+                OryksaVoicePhase.listening || OryksaVoicePhase.hearing || OryksaVoicePhase.starting => 1 + .03 * wave + .14 * voice,
+                OryksaVoicePhase.thinking => 1 + .04 * wave,
+                _ => 1.0,
+              };
               return Transform.scale(
                 scale: k,
                 child: Container(width: s, height: s, decoration: BoxDecoration(shape: BoxShape.circle, color: th.accent.withValues(alpha: op))),
