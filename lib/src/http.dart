@@ -7,8 +7,11 @@ import 'package:http_parser/http_parser.dart';
 
 import 'errors.dart';
 
-/// SDK version sent in the `X-ORYKSA-SDK` header.
-const String oryksaSdkVersion = '1.2.1';
+/// SDK version sent in the `X-ORYKSA-SDK` header, as `flutter/<version>`.
+///
+/// ⚠️ Has to match `version:` in pubspec.yaml. It said 1.2.1 while pub.dev served
+/// 1.2.2, so every 1.2.2 install reported itself as 1.2.1 in the server logs.
+const String oryksaSdkVersion = '1.2.3';
 
 /// Default API base.
 const String oryksaDefaultBase = 'https://api.oryksa.com/v1';

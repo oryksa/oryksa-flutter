@@ -1,3 +1,17 @@
+## 1.2.3
+
+* **The lead now says which app it came from.** Every message sent with `OryksaClient.send`
+  (and so everything the chat and the voice screen send) carries `platform`: `ios` on an
+  iPhone or iPad, `android` on an Android phone or tablet, `flutter` on the web, macOS,
+  Windows and Linux. The owner's new-lead notice can then say "in your app (iPhone)" or
+  "(Android)" instead of just "in your app". Before this, `platform` only went out when the
+  message carried voice numbers, so a lead that was typed arrived with no device at all.
+* `X-ORYKSA-SDK` now reports the real version. The constant had been left at 1.2.1 while
+  pub.dev served 1.2.2, so every 1.2.2 install logged itself as 1.2.1. A test now fails if
+  it ever drifts from `pubspec.yaml` again.
+* Voice telemetry keeps working: the server reads `ios` and `android` as the `sdk_ios` and
+  `sdk_android` channels, and `flutter` as before.
+
 ## 1.2.2
 
 * **Android voice fixed.** On Android the voice screen got stuck on "I'm listening": the AI's spoken answer never played and the microphone stopped after her first reply. Two causes, both fixed:

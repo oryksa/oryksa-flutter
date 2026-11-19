@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'errors.dart';
 import 'http.dart';
 import 'models.dart';
+import 'platform.dart';
 
 /// In-app client. Uses a short-lived session token (`oryk_cs_...`) created by YOUR
 /// server with `POST /v1/sessions`. The secret API key never goes into the app.
@@ -137,12 +138,15 @@ class OryksaClient {
   }) async =>
       OryksaReply.fromJson(await _req('POST', '/client/chat', {
         'message': message,
+        // O aparelho vai em TODOS os pedidos, nao so nos que levam numeros da voz:
+        // e com ele que o aviso de lead do dono diz "na tua app (iPhone)" ou "(Android)".
+        'platform': oryksaPlatform,
         if (image != null) ...{'image_base64': base64Encode(image.bytes), 'image_mime': image.mime},
         if (lang != null && lang.isNotEmpty) 'lang': lang,
         if (appContext != null) 'app_context': appContext.toJson(),
         if (voice) 'voice': true,
         if (whisper) 'whisper': true,
-        if (voiceStats != null) ...{'platform': 'flutter', 'voice_stats': voiceStats},
+        if (voiceStats != null) 'voice_stats': voiceStats,
       }));
 
   /// Sends a message and waits for the reply text (up to [maxWait]).
@@ -225,7 +229,7 @@ class OryksaClient {
   /// Reports a voice turn that produced no message (nothing heard, a cut with nothing said).
   Future<void> voiceStats(Map<String, dynamic> stats) async {
     try {
-      await _req('POST', '/client/voice-stats', {'platform': 'flutter', 'voice_stats': stats});
+      await _req('POST', '/client/voice-stats', {'platform': oryksaPlatform, 'voice_stats': stats});
     } catch (_) {}
   }
 
