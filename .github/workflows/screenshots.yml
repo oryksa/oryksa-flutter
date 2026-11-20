@@ -1,0 +1,42 @@
+name: Screenshots
+on:
+  workflow_dispatch:
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable }
+      - run: flutter pub get
+      - name: The README theme code compiles (dart analyze, example included)
+        run: dart analyze
+      - name: Build the example for the web
+        working-directory: example
+        env: { ORYKSA_TEST_TOKEN: "${{ secrets.ORYKSA_TEST_TOKEN }}" }
+        run: flutter build web --release --dart-define=ORYKSA_TEST_TOKEN="$ORYKSA_TEST_TOKEN"
+      - name: Screenshots in Chrome at phone size (412x892, 3x)
+        run: |
+          mkdir -p shots /tmp/pp
+          (cd example/build/web && python3 -m http.server 8080 >/dev/null 2>&1 &)
+          cd /tmp/pp && npm init -y >/dev/null && npm i puppeteer-core@23 >/dev/null 2>&1
+          cat > shot.js <<'JS'
+          const puppeteer = require('puppeteer-core');
+          (async () => {
+            const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
+            for (const l of ['en', 'pt']) for (const s of ['product', 'chat', 'theme']) {
+              const p = await b.newPage();
+              await p.setViewport({ width: 412, height: 892, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+              const q = s === 'product' ? '?lang=' + l : '?screen=' + s + '&lang=' + l;
+              await p.goto('http://localhost:8080/' + q, { waitUntil: 'networkidle0', timeout: 120000 });
+              await new Promise(r => setTimeout(r, s === 'product' ? 6000 : 15000));
+              await p.screenshot({ path: process.env.GITHUB_WORKSPACE + '/shots/flutter_' + s + '_' + l + '.png' });
+              await p.close();
+            }
+            await b.close();
+          })().catch(e => { console.error(e); process.exit(1); });
+          JS
+          node shot.js
+          ls -la "$GITHUB_WORKSPACE/shots"
+      - uses: actions/upload-artifact@v4
+        with: { name: flutter-screenshots, path: shots/*.png }

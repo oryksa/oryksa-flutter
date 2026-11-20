@@ -17,14 +17,22 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
 import 'package:oryksa/oryksa.dart';
 
+import 'theme_example.dart';
+
 /// Your backend endpoint that returns {"token": "oryk_cs_..."} for the signed-in user.
 const tokenEndpoint = String.fromEnvironment('ORYKSA_TOKEN_URL', defaultValue: 'https://your-server.example/oryksa-token');
 
 /// Only for local tests: a session token passed with --dart-define (never the secret key).
 const testToken = String.fromEnvironment('ORYKSA_TEST_TOKEN');
 
+/// Reads a --dart-define value; on the web also `?name=` in the address (used by the CI screenshots).
+String _arg(String name, String fromEnv) => fromEnv.isNotEmpty ? fromEnv : (Uri.base.queryParameters[name] ?? '');
+
 /// `en`, `pt`, `br` or `es`. Empty: the language of the phone.
-const lang = String.fromEnvironment('ORYKSA_LANG');
+final lang = _arg('lang', const String.fromEnvironment('ORYKSA_LANG'));
+
+/// Only for the CI screenshots: `chat` or `theme` opens the chat panel directly. Empty: the app.
+final screen = _arg('screen', const String.fromEnvironment('ORYKSA_SCREEN'));
 
 Future<String> fetchSessionToken() async {
   if (testToken.isNotEmpty) return testToken;
@@ -46,7 +54,7 @@ class DemoApp extends StatelessWidget {
         // With these the bubble and the chat follow the language of the phone.
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         supportedLocales: const [Locale('en'), Locale('pt'), Locale('pt', 'BR'), Locale('es')],
-        home: const Shell(),
+        home: screen.isEmpty ? const Shell() : const ChatScreen(),
       );
 }
 
@@ -150,4 +158,33 @@ class ProductPage extends StatelessWidget {
       );
     });
   }
+}
+
+
+/// The chat panel on its own (CI screenshots): default colors for `chat`, the README theme for `theme`.
+class ChatScreen extends StatefulWidget {
+  const ChatScreen({super.key});
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final client = OryksaClient(getToken: fetchSessionToken);
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: SafeArea(
+          child: OryksaChat(
+            client: client,
+            lang: lang.isEmpty ? 'en' : lang,
+            theme: screen == 'theme' ? readmeTheme : const OryksaChatTheme(),
+            appContext: () => const OryksaAppContext(
+              screen: 'product',
+              title: 'Sky Beginner Snowboard, 489.95',
+              items: ['Sky Beginner Snowboard'],
+            ),
+          ),
+        ),
+      );
 }
