@@ -9,6 +9,12 @@ Official Flutter SDK for **ORYKSA AI Employees**. Put an AI employee that alread
 * Docs: https://developer.oryksa.com/en/sdks
 * API: `https://api.oryksa.com/v1`
 
+## Screenshots
+
+<p align="center"><img src="docs/screenshots/flutter_product_en.png" width="230" alt="Product page with the chat button"> <img src="docs/screenshots/flutter_chat_en.png" width="230" alt="Chat"> <img src="docs/screenshots/flutter_theme_en.png" width="230" alt="Chat with the README theme"></p>
+
+Real screens of the example app in this repository (`example/`), built for the web by CI and captured in Chrome at phone size with an ORYKSA test account. The green chat uses the code of *Colours and theme* below.
+
 ## Install
 
 ```bash
