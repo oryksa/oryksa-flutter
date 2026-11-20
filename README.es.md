@@ -146,6 +146,26 @@ final event = verifyWebhook(rawBody, request.headers['oryksa-signature'], webhoo
 
 Toda llamada que falla lanza `OryksaException` con `status`, `code` (por ejemplo `interaction_limit_reached`, `rate_limited`, `plan_required`) y `message`.
 
+## Colores y tema
+
+`OryksaChatTheme` tiene seis colores: `accent` (botones, burbujas del visitante, enlaces), `ink` (texto principal), `soft` (burbujas de la IA), `background` (panel), `muted` (texto secundario) y `line` (separadores). `OryksaChatTheme()` es la versión clara y `OryksaChatTheme.dark()` la oscura. Pasa el tema a `OryksaChatButton`, `OryksaChat`, `showOryksaChat` u `OryksaTabBubble`.
+
+```dart
+// Your own colors (light)
+OryksaChatButton(
+  client: client,
+  theme: const OryksaChatTheme(accent: Color(0xFF0E8A6B)),
+);
+
+// Dark version, with your accent
+OryksaChatButton(
+  client: client,
+  theme: const OryksaChatTheme.dark(accent: Color(0xFF3DD9A8)),
+);
+```
+
+`OryksaTabBubble` y `showOryksaChatScreen` siguen el tema claro u oscuro de tu app cuando no pasas ningún tema (`OryksaChatTheme.of(context)`).
+
 ---
 
 ## Sobre el autor
