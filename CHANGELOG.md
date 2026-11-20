@@ -1,3 +1,13 @@
+## 1.2.4
+
+* **Documentation only, no change in the SDK code.** The README is now in English, Portuguese, Spanish
+  and French, with real screenshots of the example app (taken by CI with an ORYKSA test account), an
+  animated overview of the ORYKSA SDKs and a *Colours and theme* section.
+* The example app contains the README theme code (`example/lib/theme_example.dart`), so `dart analyze`
+  and the web build check it on every push. `ORYKSA_SCREEN=chat|theme` (or `?screen=` on the web) opens
+  the chat directly.
+* The YouTube link of the author section is now https://www.youtube.com/@ORYKSA.
+
 ## 1.2.3
 
 * **The lead now says which app it came from.** Every message sent with `OryksaClient.send`

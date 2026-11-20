@@ -13,7 +13,7 @@ SDK oficial de Flutter de **ORYKSA AI Employees**. Pon dentro de tu app Flutter 
 
 ## Capturas de pantalla
 
-<p align="center"><img src="docs/screenshots/flutter_product_en.png" width="230" alt="Product page with the chat button"> <img src="docs/screenshots/flutter_chat_en.png" width="230" alt="Chat"> <img src="docs/screenshots/flutter_theme_en.png" width="230" alt="Chat with the README theme"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/oryksa/oryksa-flutter/main/docs/screenshots/flutter_product_en.png" width="230" alt="Product page with the chat button"> <img src="https://raw.githubusercontent.com/oryksa/oryksa-flutter/main/docs/screenshots/flutter_chat_en.png" width="230" alt="Chat"> <img src="https://raw.githubusercontent.com/oryksa/oryksa-flutter/main/docs/screenshots/flutter_theme_en.png" width="230" alt="Chat with the README theme"></p>
 
 Pantallas reales de la app de ejemplo de este repositorio (`example/`), compilada para la web por el CI y capturada en Chrome a tamaño de móvil con una cuenta de prueba de ORYKSA. El chat verde usa el código de *Colores y tema*, más abajo.
 

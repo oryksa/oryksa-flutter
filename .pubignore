@@ -1,0 +1,9 @@
+.dart_tool/
+build/
+.packages
+pubspec.lock
+example/pubspec.lock
+.flutter-plugins*
+
+# owner 20/11/2026: the README screenshots load from GitHub; they do not go in the package
+docs/
