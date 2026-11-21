@@ -31,7 +31,8 @@ String _arg(String name, String fromEnv) => fromEnv.isNotEmpty ? fromEnv : (Uri.
 /// `en`, `pt`, `br` or `es`. Empty: the language of the phone.
 final lang = _arg('lang', const String.fromEnvironment('ORYKSA_LANG'));
 
-/// Only for the CI screenshots: `chat` or `theme` opens the chat panel directly. Empty: the app.
+/// Only for the CI: `chat` or `theme` opens the chat panel directly, `voice` the voice
+/// conversation (audio route check). Empty: the app.
 final screen = _arg('screen', const String.fromEnvironment('ORYKSA_SCREEN'));
 
 Future<String> fetchSessionToken() async {
@@ -179,6 +180,7 @@ class _ChatScreenState extends State<ChatScreen> {
             client: client,
             lang: lang.isEmpty ? 'en' : lang,
             theme: screen == 'theme' ? readmeTheme : const OryksaChatTheme(),
+            startInVoice: screen == 'voice',
             appContext: () => const OryksaAppContext(
               screen: 'product',
               title: 'Sky Beginner Snowboard, 489.95',

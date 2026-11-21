@@ -62,6 +62,7 @@ class OryksaVoiceController extends ChangeNotifier {
     this.onUserText,
     this.onReply,
     this.lang,
+    this.answer,
   });
 
   /// Client with the session token.
@@ -78,6 +79,13 @@ class OryksaVoiceController extends ChangeNotifier {
 
   /// Called with the whole reply of the AI (to show it in the chat).
   final void Function(String text)? onReply;
+
+  /// Your own conversation, with the AI's voice: when set, what the customer says goes to
+  /// this function instead of the ORYKSA agent, and the controller speaks what it returns
+  /// (null or empty: she stays silent and keeps listening). For example a form your app
+  /// fills by voice: your server asks the next question and returns the fields it heard.
+  /// The microphone, the cut-in, the transcription and the voice stay the SDK's.
+  final Future<String?> Function(String text)? answer;
 
   static const int _sr = 16000;
 
@@ -209,7 +217,49 @@ class OryksaVoiceController extends ChangeNotifier {
       ));
       await s.setActive(true);
     } catch (_) {}
+    await _androidSpeaker();
   }
+
+  /// Android: the AI's voice plays as a conversation (voiceCommunication), and Android sends
+  /// that to the earpiece, at call volume, unless the loudspeaker is chosen ("the voice is
+  /// super low", TugaFreela app, 21/11/2026). Same as iOS (defaultToSpeaker) and the native
+  /// Android SDK: conversation mode + loudspeaker. With a headset (wired, USB, Bluetooth or a
+  /// hearing aid) nothing is forced: the voice goes to the headset as before.
+  Future<void> _androidSpeaker() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final am = AndroidAudioManager();
+      final outs = await am.getDevices(AndroidGetAudioDevicesFlags.outputs);
+      if (outs.any((d) => _headsets.contains(d.type))) return;
+      _oldMode ??= await am.getMode();
+      await am.setMode(AndroidAudioHardwareMode.inCommunication);
+      await am.setSpeakerphoneOn(true);
+      _speakerOn = true;
+    } catch (_) {}
+  }
+
+  /// Gives the phone back as it was (mode and loudspeaker) when the voice closes.
+  Future<void> _androidSpeakerOff() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final am = AndroidAudioManager();
+      if (_speakerOn) await am.setSpeakerphoneOn(false);
+      if (_oldMode != null) await am.setMode(_oldMode!);
+    } catch (_) {}
+    _speakerOn = false;
+    _oldMode = null;
+  }
+
+  static const _headsets = {
+    AndroidAudioDeviceType.wiredHeadset,
+    AndroidAudioDeviceType.wiredHeadphones,
+    AndroidAudioDeviceType.bluetoothSco,
+    AndroidAudioDeviceType.bluetoothA2dp,
+    AndroidAudioDeviceType.usbHeadset,
+    AndroidAudioDeviceType.hearingAid,
+  };
+  bool _speakerOn = false;
+  AndroidAudioHardwareMode? _oldMode;
 
   Future<Stream<Uint8List>?> _openMic({required bool effects}) async {
     try {
@@ -390,6 +440,25 @@ class OryksaVoiceController extends ChangeNotifier {
   Future<void> _ask(String text, int my, {required bool whisper, Map<String, dynamic>? stats}) async {
     lastHeard = text;
     onUserText?.call(text);
+    if (answer != null) {
+      String? own;
+      try {
+        own = await answer!(text);
+      } catch (_) {
+        own = null;
+      }
+      if (_closed || my != _turn) return;
+      own = (own ?? '').trim();
+      if (own.isEmpty) {
+        _busy = false;
+        _set(OryksaVoicePhase.listening);
+        return;
+      }
+      lastReply = own;
+      onReply?.call(own);
+      await _speak(own, my);
+      return;
+    }
     OryksaReply? r;
     try {
       r = await client.sendAndWaitReply(text,
@@ -506,6 +575,7 @@ class OryksaVoiceController extends ChangeNotifier {
     await _playSub?.cancel();
     await oryksaDeleteVoiceFile(_voiceFile);
     _voiceFile = null;
+    await _androidSpeakerOff();
     try {
       await (await AudioSession.instance).setActive(false); // give the audio back to other apps
     } catch (_) {}
@@ -520,6 +590,7 @@ class OryksaVoiceController extends ChangeNotifier {
     _pcmSub?.cancel();
     _playSub?.cancel();
     unawaited(oryksaDeleteVoiceFile(_voiceFile));
+    unawaited(_androidSpeakerOff());
     _rec.dispose();
     _player.dispose();
     level.dispose();

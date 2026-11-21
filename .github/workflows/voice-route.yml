@@ -1,0 +1,73 @@
+name: Voice audio route (Android)
+# Proof for the Android loudspeaker fix: opens the voice conversation of the example on an
+# emulator, with the 1.2.4 voice (before) and with this commit (after), and records the
+# audio mode and the communication device Android uses for the AI's voice.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["proof/**"]
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable }
+      - name: Build the example on the voice screen, before (1.2.4 voice) and after (this commit)
+        working-directory: example
+        env: { ORYKSA_TEST_TOKEN: "${{ secrets.ORYKSA_TEST_TOKEN }}" }
+        run: |
+          set -e
+          D="--dart-define=ORYKSA_TEST_TOKEN=$ORYKSA_TEST_TOKEN --dart-define=ORYKSA_SCREEN=voice --dart-define=ORYKSA_LANG=pt"
+          flutter build apk --debug $D
+          cp build/app/outputs/flutter-apk/app-debug.apk /tmp/after.apk
+          cp ../lib/src/voice.dart /tmp/voice_after.dart
+          git -C .. show v1.2.4:lib/src/voice.dart > ../lib/src/voice.dart
+          flutter build apk --debug $D
+          cp build/app/outputs/flutter-apk/app-debug.apk /tmp/before.apk
+          cp /tmp/voice_after.dart ../lib/src/voice.dart
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Probe script
+        run: |
+          mkdir -p route
+          cat > /tmp/probe.sh <<'SH'
+          set -x
+          P=com.oryksa.oryksa_example
+          for v in before after; do
+            adb install -r /tmp/$v.apk
+            adb shell pm grant $P android.permission.RECORD_AUDIO
+            adb shell monkey -p $P -c android.intent.category.LAUNCHER 1
+            sleep 12
+            adb exec-out screencap -p > route/$v-1.png
+            {
+              echo "================ $v ================"
+              adb shell dumpsys audio | grep -iE "mode \(|audio mode|^ *mode:|mMode|communication|speakerphone|SCO" | head -40
+              echo "---- audio policy"
+              adb shell dumpsys media.audio_policy | grep -iE "force use|for_communication|Phone state" | head -10
+              echo "---- tracks"
+              adb shell dumpsys media.audio_flinger | grep -iE "Output device|usage|AUDIO_USAGE|Standby" | head -20
+            } >> route/route.txt 2>&1
+            sleep 8
+            adb exec-out screencap -p > route/$v-2.png
+            adb shell am force-stop $P
+            sleep 4
+          done
+          SH
+      - name: Run on the emulator (API 34)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: bash /tmp/probe.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: voice-route, path: route }
