@@ -104,25 +104,6 @@ OryksaTabBubble(
 )
 ```
 
-## Votre propre conversation vocale (1.2.5)
-
-Avec `answer`, le contrôleur vocal converse à travers votre logique au lieu de l'agent ORYKSA, avec le même micro, la même interruption, la même transcription et la même voix. Votre app dessine son propre écran à partir de `controller.phase` et `controller.level`, par exemple une petite barre au-dessus d'un formulaire que le client remplit en parlant.
-
-```dart
-final voice = OryksaVoiceController(
-  client: client,
-  lang: 'fr',
-  // Ce que dit le client va à votre serveur ; elle dit ce qu'il renvoie.
-  answer: (text) async {
-    final r = await myServer.formInterview(text, form.values);
-    form.apply(r.fields);
-    return r.say;
-  },
-);
-await voice.start();
-await voice.say('Que vendez-vous ?');
-```
-
 ## Comment ça marche (et pourquoi la clé reste en sécurité)
 
 1. Votre **serveur** garde la clé API secrète (`oryk_live_...`, créée sur developer.oryksa.com) et crée un **jeton de session** de courte durée pour chaque utilisateur connecté avec `POST /v1/sessions`.

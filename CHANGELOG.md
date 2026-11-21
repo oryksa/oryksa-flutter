@@ -16,9 +16,6 @@
   `OryksaVoiceScreen` lets your app open its own screens (return true) instead of the browser.
 * **The voice screen shows what she says**, the short spoken version, without the addresses, with the same cards
   under it; tapping Open closes the voice screen. `OryksaVoiceController.lastSpoken`.
-* **Your own voice conversation.** `OryksaVoiceController(answer: ...)`: what the customer says goes to your function
-  instead of the ORYKSA agent, and she speaks what it returns, with the same microphone, cut-in, transcription and
-  voice. For example a form your app fills by talking. `say()` now also sets `lastReply`.
 * **Attach a photo, take one or send a document.** The chat has an attach button (on by default, `attachments: false`
   hides it): a photo from the library, the camera (not on the web), or a document (PDF, Word, text, CSV, up to 8 MB).
   The AI looks at the photo and reads the document (new `file_base64` / `file_name` / `file_mime` on
