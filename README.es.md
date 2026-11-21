@@ -104,6 +104,30 @@ OryksaTabBubble(
 )
 ```
 
+## Tus funciones de IA: `client.ai` (1.2.6)
+
+Haz que la IA haga lo que tu app necesita (leer una foto, extraer datos, clasificar, traducir, escribir) y paga con interacciones ORYKSA: 1 por respuesta. Tu prompt y tu JSON Schema viven en tu app; basta el token de sesión (nunca lleves la clave secreta). No crea una conversación en tu bandeja.
+
+```dart
+final r = await client.ai(
+  instructions: 'Read the tyre on the photo: brand, model and size exactly as written on the sidewall. '
+      'If the size is not legible, readable=false and size=null. Never invent.',
+  images: [OryksaImage(photoBytes)], // JPEG, 1600 px
+  schema: {
+    'type': 'object',
+    'properties': {
+      'readable': {'type': 'boolean'},
+      'brand': {'type': ['string', 'null']},
+      'size': {'type': ['string', 'null']},
+    },
+    'required': ['readable', 'brand', 'size'],
+  },
+);
+if (r.json?['readable'] == true) showProductsFor(r.json!['size'] as String);
+```
+
+`r.text` trae la respuesta en texto, `r.json` el objeto (con schema) y `r.interactionsSpent` las interacciones usadas. Cuando se agotan las interacciones del plan, la llamada lanza `OryksaException` con el status 402.
+
 ## Cómo funciona (y por qué la clave está segura)
 
 1. Tu **servidor** guarda la clave secreta de la API (`oryk_live_...`, creada en developer.oryksa.com) y crea un **token de sesión** de corta duración para cada usuario que ha iniciado sesión, con `POST /v1/sessions`.

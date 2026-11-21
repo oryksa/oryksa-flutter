@@ -135,6 +135,46 @@ class OryksaClient {
     }
   }
 
+  /// An AI task of your own app, counted as ORYKSA interactions (1 per answer): read a
+  /// photo, extract data, classify, translate, write. It never creates a conversation in the
+  /// business's inbox and never acts on the account.
+  ///
+  /// * [instructions]: what the AI must do (your prompt; it lives in your app).
+  /// * [input]: the text to work on.
+  /// * [images]: up to 4 photos (JPEG/PNG/WebP, about 1.5 MB each; resize to 1600 px).
+  /// * [schema]: a JSON Schema; the answer comes back in [OryksaAiResult.json].
+  ///
+  /// ```dart
+  /// final r = await client.ai(
+  ///   instructions: 'Read the tyre size on the sidewall. Never invent.',
+  ///   images: [OryksaImage(bytes)],
+  ///   schema: {'type': 'object', 'properties': {'size': {'type': ['string', 'null']}}},
+  /// );
+  /// print(r.json?['size']);
+  /// ```
+  Future<OryksaAiResult> ai({
+    String? instructions,
+    String? input,
+    List<OryksaImage> images = const [],
+    Map<String, dynamic>? schema,
+    int? maxTokens,
+    double? temperature,
+  }) async {
+    if ((instructions ?? '').isEmpty && (input ?? '').isEmpty && images.isEmpty) {
+      throw ArgumentError('ai() needs instructions, input or an image.');
+    }
+    if (images.length > 4) throw ArgumentError('ai() takes at most 4 images.');
+    return OryksaAiResult.fromJson(await _req('POST', '/client/ai', {
+      if (instructions != null && instructions.isNotEmpty) 'instructions': instructions,
+      if (input != null && input.isNotEmpty) 'input': input,
+      if (images.isNotEmpty) 'images': [for (final i in images) {'base64': base64Encode(i.bytes), 'mime': i.mime}],
+      if (schema != null) 'schema': schema,
+      if (maxTokens != null) 'max_tokens': maxTokens,
+      if (temperature != null) 'temperature': temperature,
+      'platform': oryksaPlatform,
+    }));
+  }
+
   /// Sends a message ([image]: a photo from the customer, the AI looks at it; [file]: a
   /// document, the AI reads it). The status is
   /// `pending` when the AI needs a few more seconds:

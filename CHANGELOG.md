@@ -1,3 +1,11 @@
+## 1.2.6
+
+* **The AI doing what you want in your app: `client.ai(...)`.** An AI task of your own feature, from the app, with the
+  session token (never the secret key): instructions, text, up to 4 photos and an optional JSON Schema; the answer
+  comes back as text and, with a schema, as an object in `json`. Each answer counts as 1 ORYKSA interaction. It does
+  not create a conversation in the business's inbox and never acts on the account. Example: read the tyre size in a
+  photo and show the products that fit. Server route: `POST /v1/client/ai`.
+
 ## 1.2.5
 
 * **Her voice on the loudspeaker on Android.** The voice conversation played her voice as a phone call: Android sent

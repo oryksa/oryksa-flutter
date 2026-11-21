@@ -244,3 +244,33 @@ class OryksaLinkPreview {
   /// Price, when the page says it (shops).
   final String price;
 }
+
+/// The answer of [OryksaClient.ai]: an AI task of your own app (read a photo, extract data,
+/// classify, write), counted as ORYKSA interactions.
+class OryksaAiResult {
+  /// Creates a result.
+  const OryksaAiResult({required this.text, this.json, this.interactionsSpent = 0, this.interactionsRemaining});
+
+  /// Reads an `ai_result` object.
+  factory OryksaAiResult.fromJson(Map<String, dynamic> j) {
+    final u = j['oryksa'] is Map ? Map<String, dynamic>.from(j['oryksa'] as Map) : const <String, dynamic>{};
+    return OryksaAiResult(
+      text: (j['text'] ?? '').toString(),
+      json: j['json'] is Map ? Map<String, dynamic>.from(j['json'] as Map) : null,
+      interactionsSpent: (u['interactions_spent'] as num?)?.toInt() ?? 0,
+      interactionsRemaining: (u['interactions_remaining'] as num?)?.toInt(),
+    );
+  }
+
+  /// The AI's answer as text (with a [schema], the JSON text).
+  final String text;
+
+  /// The answer as an object, when you passed a JSON Schema and the answer follows it.
+  final Map<String, dynamic>? json;
+
+  /// ORYKSA interactions this answer used (1 per answer).
+  final int interactionsSpent;
+
+  /// ORYKSA interactions left in this period, when known.
+  final int? interactionsRemaining;
+}
