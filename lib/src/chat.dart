@@ -289,7 +289,10 @@ class _OryksaChatState extends State<OryksaChat> {
         }
         return;
       }
-      if (choice == 'gallery' && widget.onPickImage != null) return _pickAndSend();
+      if (choice == 'gallery' && widget.onPickImage != null) {
+        await _pickAndSend();
+        return;
+      }
       final x = await ImagePicker().pickImage(
           source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery, maxWidth: 1600, maxHeight: 1600, imageQuality: 80);
       if (x == null || !mounted) return;
