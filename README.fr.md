@@ -77,7 +77,7 @@ floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
 Le chat affiche un micro quand votre forfait inclut la voix. Il ouvre l'écran vocal avec le même comportement que l'app ORYKSA : le micro reste ouvert pendant qu'elle parle et seule une voix humaine l'interrompt (la frappe au clavier, la télévision et son propre écho ne l'interrompent pas) ; elle s'arrête sur le mot et le texte reste dans le chat ; à un chuchotement, elle répond en chuchotant ; si sa voix échoue, le texte est affiché (jamais une voix robotique).
 
-Autorisation du micro : Android `<uses-permission android:name="android.permission.RECORD_AUDIO"/>`, iOS `NSMicrophoneUsageDescription` dans Info.plist.
+Autorisations du micro et du haut-parleur : Android `<uses-permission android:name="android.permission.RECORD_AUDIO"/>` et `<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>` (sa voix sur le haut-parleur pendant la conversation ; sans elle, la voix sort comme un média), iOS `NSMicrophoneUsageDescription` dans Info.plist. Le bouton pour joindre un fichier (photo de la galerie, appareil photo, document ; actif par défaut, `attachments: false` le masque) a besoin de `NSCameraUsageDescription` et `NSPhotoLibraryUsageDescription` dans Info.plist ; rien de plus sur Android.
 
 ```dart
 OryksaChatButton(
@@ -86,6 +86,41 @@ OryksaChatButton(
   // l'écran sur lequel se trouve le client, pour que l'IA réponde à son sujet
   appContext: () => const OryksaAppContext(screen: 'product', title: 'Sky Beginner Snowboard, 489.95'),
 )
+```
+
+## Liens avec un bouton pour les ouvrir (1.2.5)
+
+Les liens que donne l'IA se touchent dans le chat, et chacun a une carte sous sa réponse avec la photo et le titre de la page et un bouton pour l'ouvrir (les pages de votre propre site, les domaines de votre chat web ; les autres sites montrent l'adresse). L'écran vocal montre ce qu'elle dit sans les adresses, avec les mêmes cartes. Passez `onLink` pour ouvrir vos propres écrans, par exemple la page du produit : renvoyez true quand votre app l'a ouvert, false pour laisser le navigateur l'ouvrir.
+
+```dart
+OryksaTabBubble(
+  client: client,
+  onLink: (uri) {
+    final id = myProductIdOf(uri); // vos routes
+    if (id == null) return false;
+    Navigator.of(context).pushNamed('/product', arguments: id);
+    return true;
+  },
+)
+```
+
+## Votre propre conversation vocale (1.2.5)
+
+Avec `answer`, le contrôleur vocal converse à travers votre logique au lieu de l'agent ORYKSA, avec le même micro, la même interruption, la même transcription et la même voix. Votre app dessine son propre écran à partir de `controller.phase` et `controller.level`, par exemple une petite barre au-dessus d'un formulaire que le client remplit en parlant.
+
+```dart
+final voice = OryksaVoiceController(
+  client: client,
+  lang: 'fr',
+  // Ce que dit le client va à votre serveur ; elle dit ce qu'il renvoie.
+  answer: (text) async {
+    final r = await myServer.formInterview(text, form.values);
+    form.apply(r.fields);
+    return r.say;
+  },
+);
+await voice.start();
+await voice.say('Que vendez-vous ?');
 ```
 
 ## Comment ça marche (et pourquoi la clé reste en sécurité)

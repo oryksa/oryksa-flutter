@@ -77,7 +77,7 @@ floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
 The chat shows a microphone when your plan has voice. It opens the voice screen with the same behaviour as the ORYKSA app: the microphone stays open while she speaks and only a human voice cuts her off (typing, TV and her own echo do not); she stops on the word and the text stays in the chat; a whisper gets a whispered answer; if her voice fails, the text is shown (never a robot voice).
 
-Microphone permission: Android `<uses-permission android:name="android.permission.RECORD_AUDIO"/>`, iOS `NSMicrophoneUsageDescription` in Info.plist.
+Microphone and loudspeaker permissions: Android `<uses-permission android:name="android.permission.RECORD_AUDIO"/>` and `<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>` (her voice on the loudspeaker during the conversation; without it her voice goes out as media), iOS `NSMicrophoneUsageDescription` in Info.plist. The attach button (photo library, camera, document; on by default, `attachments: false` hides it) needs `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` in Info.plist; nothing more on Android.
 
 ```dart
 OryksaChatButton(
@@ -86,6 +86,41 @@ OryksaChatButton(
   // the screen the customer is on, so the AI answers about it
   appContext: () => const OryksaAppContext(screen: 'product', title: 'Sky Beginner Snowboard, 489.95'),
 )
+```
+
+## Links with an Open button (1.2.5)
+
+The links the AI gives can be tapped in the chat, and each one gets a card under her reply with the picture and title of the page and an **Open** button (the pages of your own site, the domains of your website chat; other sites show the address). The voice screen shows what she says without the addresses, with the same cards. Pass `onLink` to open your own screens, for example your product page: return true when your app opened it, false to let the browser open it.
+
+```dart
+OryksaTabBubble(
+  client: client,
+  onLink: (uri) {
+    final id = myProductIdOf(uri); // your routes
+    if (id == null) return false;
+    Navigator.of(context).pushNamed('/product', arguments: id);
+    return true;
+  },
+)
+```
+
+## Your own voice conversation (1.2.5)
+
+With `answer`, the voice controller talks through your own logic instead of the ORYKSA agent, with the same microphone, cut-in, transcription and voice. Your app draws its own screen from `controller.phase` and `controller.level`, for example a small bar over a form the customer fills by talking.
+
+```dart
+final voice = OryksaVoiceController(
+  client: client,
+  lang: 'en',
+  // What the customer says goes to your server; she speaks what it returns.
+  answer: (text) async {
+    final r = await myServer.formInterview(text, form.values);
+    form.apply(r.fields);
+    return r.say;
+  },
+);
+await voice.start();
+await voice.say('What do you sell?');
 ```
 
 ## How it works (and why the key stays safe)

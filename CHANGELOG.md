@@ -1,3 +1,31 @@
+## 1.2.5
+
+* **Her voice on the loudspeaker on Android.** The voice conversation played her voice as a phone call: Android sent
+  it to the earpiece, at call volume, so it was very low (TugaFreela app, 21/11/2026). The SDK now turns on the
+  conversation mode with the loudspeaker, like iOS (`defaultToSpeaker`) and the native Android SDK, and gives the
+  phone back as it was when the voice closes. With a headset (wired, USB, Bluetooth or a hearing aid) nothing is
+  forced. Add `<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>` to your AndroidManifest:
+  without it Android ignores the loudspeaker, and the SDK then plays her voice as media (loudspeaker, media volume).
+  Checked on an Android 14 emulator by CI (`.github/workflows/voice-route.yml`): with 1.2.4 the mode stays NORMAL
+  with no communication device; with 1.2.5 the mode is MODE_IN_COMMUNICATION and the device is the loudspeaker.
+* **Links you can tap, with an Open button.** The links of her replies were plain text. They can now be tapped in
+  the chat (web and e-mail), and each link gets a card under the reply with the picture and the title of the page and
+  an **Open** button. Titles and pictures come from `OryksaClient.linkPreview` (new `GET /v1/client/link-preview`),
+  only for the pages of the business's own site (its website chat domains). `onLink` on `OryksaChat`,
+  `OryksaChatButton`, `OryksaTabBubble`, `OryksaBottomBar`, `showOryksaChat`, `showOryksaChatScreen` and
+  `OryksaVoiceScreen` lets your app open its own screens (return true) instead of the browser.
+* **The voice screen shows what she says**, the short spoken version, without the addresses, with the same cards
+  under it; tapping Open closes the voice screen. `OryksaVoiceController.lastSpoken`.
+* **Your own voice conversation.** `OryksaVoiceController(answer: ...)`: what the customer says goes to your function
+  instead of the ORYKSA agent, and she speaks what it returns, with the same microphone, cut-in, transcription and
+  voice. For example a form your app fills by talking. `say()` now also sets `lastReply`.
+* **Attach a photo, take one or send a document.** The chat has an attach button (on by default, `attachments: false`
+  hides it): a photo from the library, the camera (not on the web), or a document (PDF, Word, text, CSV, up to 8 MB).
+  The AI looks at the photo and reads the document (new `file_base64` / `file_name` / `file_mime` on
+  `POST /v1/client/chat`, `OryksaFile`, `send(file:)`). iOS needs `NSCameraUsageDescription` and
+  `NSPhotoLibraryUsageDescription` in Info.plist. Your `onPickImage` still picks the library photo when you pass it.
+* Example: Android Gradle Plugin 9.1.1 (the minimum of the current Flutter stable).
+
 ## 1.2.4
 
 * **Documentation only, no change in the SDK code.** The README is now in English, Portuguese, Spanish

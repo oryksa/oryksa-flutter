@@ -4,6 +4,10 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>To talk to our assistant by voice.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>To send our assistant a photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>To send our assistant a photo from your library.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

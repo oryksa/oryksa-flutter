@@ -200,6 +200,21 @@ class OryksaImage {
   final String mime;
 }
 
+/// A document from the customer (PDF, Word, text or CSV, up to about 8 MB). The AI reads it.
+class OryksaFile {
+  /// Creates a document from its bytes.
+  const OryksaFile(this.bytes, {required this.name, this.mime = 'application/octet-stream'});
+
+  /// The file bytes.
+  final Uint8List bytes;
+
+  /// The file name, for example `orcamento.pdf`.
+  final String name;
+
+  /// The type, for example `application/pdf`.
+  final String mime;
+}
+
 /// Title and picture of a link of the business's own site ([OryksaClient.linkPreview]).
 class OryksaLinkPreview {
   /// Creates a preview.

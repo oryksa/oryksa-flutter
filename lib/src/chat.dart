@@ -1,7 +1,10 @@
 import 'dart:math' as math;
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'client.dart';
 import 'links.dart';
@@ -60,10 +63,10 @@ class OryksaChatTheme {
 }
 
 const Map<String, Map<String, String>> _tx = {
-  'en': {'talk': 'Talk to', 'ph': 'Type your question', 'send': 'Send', 'err': 'Sorry, something went wrong. Try again.', 'voice': 'Talk by voice', 'copy': 'Copy', 'unread': 'new message', 'photo': 'Send a photo', 'open': 'Open'},
-  'pt': {'talk': 'Falar com', 'ph': 'Escreve a tua pergunta', 'send': 'Enviar', 'err': 'Desculpa, algo correu mal. Tenta de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem', 'photo': 'Enviar uma foto', 'open': 'Abrir'},
-  'br': {'talk': 'Falar com', 'ph': 'Digite sua pergunta', 'send': 'Enviar', 'err': 'Desculpe, algo deu errado. Tente de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem', 'photo': 'Enviar uma foto', 'open': 'Abrir'},
-  'es': {'talk': 'Hablar con', 'ph': 'Escribe tu pregunta', 'send': 'Enviar', 'err': 'Lo siento, algo salió mal. Inténtalo de nuevo.', 'voice': 'Hablar por voz', 'copy': 'Copiar', 'unread': 'mensaje nuevo', 'photo': 'Enviar una foto', 'open': 'Abrir'},
+  'en': {'talk': 'Talk to', 'ph': 'Type your question', 'send': 'Send', 'err': 'Sorry, something went wrong. Try again.', 'voice': 'Talk by voice', 'copy': 'Copy', 'unread': 'new message', 'photo': 'Send a photo', 'open': 'Open', 'attach': 'Attach', 'gallery': 'Photo library', 'camera': 'Camera', 'document': 'Document', 'big': 'The file is too large (max 8 MB).', 'attachErr': 'Could not attach the file.'},
+  'pt': {'talk': 'Falar com', 'ph': 'Escreve a tua pergunta', 'send': 'Enviar', 'err': 'Desculpa, algo correu mal. Tenta de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem', 'photo': 'Enviar uma foto', 'open': 'Abrir', 'attach': 'Anexar', 'gallery': 'Foto da galeria', 'camera': 'Câmara', 'document': 'Documento', 'big': 'O ficheiro é demasiado grande (máx. 8 MB).', 'attachErr': 'Não foi possível anexar o ficheiro.'},
+  'br': {'talk': 'Falar com', 'ph': 'Digite sua pergunta', 'send': 'Enviar', 'err': 'Desculpe, algo deu errado. Tente de novo.', 'voice': 'Falar por voz', 'copy': 'Copiar', 'unread': 'nova mensagem', 'photo': 'Enviar uma foto', 'open': 'Abrir', 'attach': 'Anexar', 'gallery': 'Foto da galeria', 'camera': 'Câmera', 'document': 'Documento', 'big': 'O arquivo é grande demais (máx. 8 MB).', 'attachErr': 'Não foi possível anexar o arquivo.'},
+  'es': {'talk': 'Hablar con', 'ph': 'Escribe tu pregunta', 'send': 'Enviar', 'err': 'Lo siento, algo salió mal. Inténtalo de nuevo.', 'voice': 'Hablar por voz', 'copy': 'Copiar', 'unread': 'mensaje nuevo', 'photo': 'Enviar una foto', 'open': 'Abrir', 'attach': 'Adjuntar', 'gallery': 'Foto de la galería', 'camera': 'Cámara', 'document': 'Documento', 'big': 'El archivo es demasiado grande (máx. 8 MB).', 'attachErr': 'No se pudo adjuntar el archivo.'},
 };
 
 /// The SDK language for a language code or locale tag: `en`, `pt`, `br` (Portuguese
@@ -104,7 +107,13 @@ class OryksaChat extends StatefulWidget {
     this.onPickImage,
     this.startInVoice = false,
     this.onLink,
+    this.attachments = true,
   });
+
+  /// Shows the attach button: a photo from the library, the camera or a document (PDF,
+  /// Word, text). The AI looks at the photo and reads the document. Needs the camera and
+  /// photo library texts in the iOS Info.plist (see the README).
+  final bool attachments;
 
   /// What your app does with a link the AI gave (see [OryksaLinkHandler]). Null: the
   /// browser or the app that owns the address opens it.
@@ -143,11 +152,24 @@ class OryksaChat extends StatefulWidget {
 }
 
 class _Msg {
-  _Msg(this.role, this.text, [this.image]);
+  _Msg(this.role, this.text, [this.image, this.fileName]);
   final String role; // user | assistant | typing
   final String text;
   final Uint8List? image;
+  final String? fileName;
 }
+
+const Map<String, String> _docMime = {
+  'pdf': 'application/pdf',
+  'doc': 'application/msword',
+  'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'txt': 'text/plain',
+  'csv': 'text/csv',
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png': 'image/png',
+  'webp': 'image/webp',
+};
 
 class _OryksaChatState extends State<OryksaChat> {
   bool _autoVoice = false;
@@ -219,20 +241,85 @@ class _OryksaChatState extends State<OryksaChat> {
     await _send(_input.text, image: img);
   }
 
-  Future<void> _send(String text, {OryksaImage? image}) async {
+  /// The attach menu: photo library, camera (not on the web) or a document.
+  Future<void> _attach() async {
+    if (_busy) return;
+    final th = widget.theme;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: th.background,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 8),
+          ListTile(
+            leading: Icon(Icons.photo_library_outlined, color: th.accent),
+            title: Text(t['gallery']!, style: TextStyle(color: th.ink)),
+            onTap: () => Navigator.of(ctx).pop('gallery'),
+          ),
+          if (!kIsWeb)
+            ListTile(
+              leading: Icon(Icons.photo_camera_outlined, color: th.accent),
+              title: Text(t['camera']!, style: TextStyle(color: th.ink)),
+              onTap: () => Navigator.of(ctx).pop('camera'),
+            ),
+          ListTile(
+            leading: Icon(Icons.description_outlined, color: th.accent),
+            title: Text(t['document']!, style: TextStyle(color: th.ink)),
+            onTap: () => Navigator.of(ctx).pop('document'),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    try {
+      if (choice == 'document') {
+        final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: _docMime.keys.toList());
+        if (files.isEmpty || !mounted) return;
+        final f = files.first;
+        final bytes = await f.xFile.readAsBytes();
+        if (bytes.length > 8 * 1024 * 1024) return _note(t['big']!);
+        final ext = (f.extension ?? '').toLowerCase().replaceFirst('.', '');
+        final mime = _docMime[ext] ?? f.xFile.mimeType ?? 'application/octet-stream';
+        if (mime.startsWith('image/') && bytes.length <= 2 * 1024 * 1024) {
+          await _send(_input.text, image: OryksaImage(bytes, mime: mime));
+        } else {
+          await _send(_input.text, file: OryksaFile(bytes, name: f.name, mime: mime));
+        }
+        return;
+      }
+      if (choice == 'gallery' && widget.onPickImage != null) return _pickAndSend();
+      final x = await ImagePicker().pickImage(
+          source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery, maxWidth: 1600, maxHeight: 1600, imageQuality: 80);
+      if (x == null || !mounted) return;
+      final bytes = await x.readAsBytes();
+      if (bytes.length > 2 * 1024 * 1024) return _note(t['big']!);
+      await _send(_input.text, image: OryksaImage(bytes, mime: x.mimeType ?? 'image/jpeg'));
+    } catch (_) {
+      _note(t['attachErr']!);
+    }
+  }
+
+  void _note(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _send(String text, {OryksaImage? image, OryksaFile? file}) async {
     text = text.trim();
-    if ((text.isEmpty && image == null) || _busy) return;
+    if ((text.isEmpty && image == null && file == null) || _busy) return;
     setState(() {
       _busy = true;
       _sug = [];
-      _msgs.add(_Msg('user', text, image?.bytes));
+      _msgs.add(_Msg('user', text, image?.bytes, file?.name));
       _msgs.add(_Msg('typing', '...'));
       _input.clear();
     });
     _toEnd();
     String? reply;
     try {
-      reply = await widget.client.sendAndWait(text, appContext: widget.appContext?.call(), lang: _lang(widget.lang), image: image);
+      reply = await widget.client.sendAndWait(text, appContext: widget.appContext?.call(), lang: _lang(widget.lang), image: image, file: file);
     } catch (_) {
       reply = null;
     }
@@ -340,6 +427,18 @@ class _OryksaChatState extends State<OryksaChat> {
                               child: Image.memory(m.image!, height: 160, fit: BoxFit.cover, semanticLabel: t['photo']),
                             ),
                           ),
+                        if (m.fileName != null)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: m.text.isEmpty ? 0 : 8),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.description_outlined, size: 20, color: mine ? Colors.white : th.accent),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(m.fileName!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: mine ? Colors.white : th.ink)),
+                              ),
+                            ]),
+                          ),
                         if (m.text.isNotEmpty)
                           OryksaRichText(
                             mine ? OryksaProfanity.mask(m.text, _lang(widget.lang)) : m.text,
@@ -418,7 +517,13 @@ class _OryksaChatState extends State<OryksaChat> {
                 ),
               ),
             ),
-            if (widget.onPickImage != null)
+            if (widget.attachments)
+              IconButton(
+                onPressed: _busy ? null : _attach,
+                tooltip: t['attach'],
+                icon: Icon(Icons.attach_file_rounded, color: th.accent),
+              )
+            else if (widget.onPickImage != null)
               IconButton(
                 onPressed: _busy ? null : _pickAndSend,
                 tooltip: t['photo'],

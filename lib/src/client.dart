@@ -135,7 +135,8 @@ class OryksaClient {
     }
   }
 
-  /// Sends a message ([image]: a photo from the customer, the AI looks at it). The status is
+  /// Sends a message ([image]: a photo from the customer, the AI looks at it; [file]: a
+  /// document, the AI reads it). The status is
   /// `pending` when the AI needs a few more seconds:
   /// use [sendAndWait] to wait for the text.
   ///
@@ -153,6 +154,7 @@ class OryksaClient {
     Map<String, dynamic>? voiceStats,
     String? lang,
     OryksaImage? image,
+    OryksaFile? file,
   }) async =>
       OryksaReply.fromJson(await _req('POST', '/client/chat', {
         'message': message,
@@ -160,6 +162,7 @@ class OryksaClient {
         // e com ele que o aviso de lead do dono diz "na tua app (iPhone)" ou "(Android)".
         'platform': oryksaPlatform,
         if (image != null) ...{'image_base64': base64Encode(image.bytes), 'image_mime': image.mime},
+        if (file != null) ...{'file_base64': base64Encode(file.bytes), 'file_name': file.name, 'file_mime': file.mime},
         if (lang != null && lang.isNotEmpty) 'lang': lang,
         if (appContext != null) 'app_context': appContext.toJson(),
         if (voice) 'voice': true,
@@ -174,8 +177,9 @@ class OryksaClient {
     OryksaAppContext? appContext,
     String? lang,
     OryksaImage? image,
+    OryksaFile? file,
   }) async =>
-      (await sendAndWaitReply(message, maxWait: maxWait, appContext: appContext, lang: lang, image: image)).reply;
+      (await sendAndWaitReply(message, maxWait: maxWait, appContext: appContext, lang: lang, image: image, file: file)).reply;
 
   /// Like [sendAndWait], but returns the whole [OryksaReply] (with [OryksaReply.speech] when [voice] is on).
   Future<OryksaReply> sendAndWaitReply(
@@ -187,9 +191,10 @@ class OryksaClient {
     Map<String, dynamic>? voiceStats,
     String? lang,
     OryksaImage? image,
+    OryksaFile? file,
   }) async {
     final r = await send(message,
-        appContext: appContext, voice: voice, whisper: whisper, voiceStats: voiceStats, lang: lang, image: image);
+        appContext: appContext, voice: voice, whisper: whisper, voiceStats: voiceStats, lang: lang, image: image, file: file);
     if (r.status != 'pending') return r;
     final end = DateTime.now().add(maxWait);
     while (DateTime.now().isBefore(end)) {
