@@ -1,7 +1,8 @@
 name: Voice audio route (Android)
 # Proof for the Android loudspeaker fix: opens the voice conversation of the example on an
 # emulator, with the 1.2.4 voice (before) and with this commit (after), and records the
-# audio mode and the communication device Android uses for the AI's voice.
+# audio mode and the communication device Android uses for the AI's voice. The third run is the
+# same app without MODIFY_AUDIO_SETTINGS (Android ignores the loudspeaker: the voice goes as media).
 on:
   workflow_dispatch:
   push:
@@ -30,6 +31,10 @@ jobs:
           flutter build apk --debug $D
           cp build/app/outputs/flutter-apk/app-debug.apk /tmp/before.apk
           cp /tmp/voice_after.dart ../lib/src/voice.dart
+          sed -i '/MODIFY_AUDIO_SETTINGS/d' android/app/src/main/AndroidManifest.xml
+          flutter build apk --debug $D
+          cp build/app/outputs/flutter-apk/app-debug.apk /tmp/after-nopermission.apk
+          git checkout android/app/src/main/AndroidManifest.xml
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -40,7 +45,7 @@ jobs:
           cat > /tmp/probe.sh <<'SH'
           set -x
           P=com.oryksa.oryksa_example
-          for v in before after; do
+          for v in before after after-nopermission; do
             adb install -r /tmp/$v.apk
             adb shell pm grant $P android.permission.RECORD_AUDIO
             adb shell monkey -p $P -c android.intent.category.LAUNCHER 1

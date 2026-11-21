@@ -235,7 +235,22 @@ class OryksaVoiceController extends ChangeNotifier {
       await am.setMode(AndroidAudioHardwareMode.inCommunication);
       await am.setSpeakerphoneOn(true);
       _speakerOn = true;
+      // Android ignores both calls when the app does not declare MODIFY_AUDIO_SETTINGS: then
+      // her voice goes out as media (loudspeaker, media volume) instead of staying very low.
+      if (!await am.isSpeakerphoneOn()) await _voiceAsMedia();
     } catch (_) {}
+  }
+
+  Future<void> _voiceAsMedia() async {
+    final s = await AudioSession.instance;
+    final c = s.configuration;
+    if (c == null) return;
+    await s.configure(c.copyWith(
+      androidAudioAttributes: const AndroidAudioAttributes(
+        contentType: AndroidAudioContentType.speech,
+        usage: AndroidAudioUsage.media,
+      ),
+    ));
   }
 
   /// Gives the phone back as it was (mode and loudspeaker) when the voice closes.
