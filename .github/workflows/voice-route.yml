@@ -26,11 +26,11 @@ jobs:
           D="--dart-define=ORYKSA_TEST_TOKEN=$ORYKSA_TEST_TOKEN --dart-define=ORYKSA_SCREEN=say --dart-define=ORYKSA_LANG=pt"
           flutter build apk --debug $D
           cp build/app/outputs/flutter-apk/app-debug.apk /tmp/after.apk
-          cp ../lib/src/voice.dart /tmp/voice_after.dart
-          git -C .. show v1.2.4:lib/src/voice.dart > ../lib/src/voice.dart
+          git -C .. checkout v1.2.4 -- lib
           flutter build apk --debug $D
           cp build/app/outputs/flutter-apk/app-debug.apk /tmp/before.apk
-          cp /tmp/voice_after.dart ../lib/src/voice.dart
+          git -C .. checkout HEAD -- lib
+          git -C .. clean -fdq lib
           sed -i '/MODIFY_AUDIO_SETTINGS/d' android/app/src/main/AndroidManifest.xml
           flutter build apk --debug $D
           cp build/app/outputs/flutter-apk/app-debug.apk /tmp/after-nopermission.apk
