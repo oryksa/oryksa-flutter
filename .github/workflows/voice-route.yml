@@ -57,7 +57,6 @@ jobs:
               echo "---- audio policy"
               adb shell dumpsys media.audio_policy | grep -iE "force use|for_communication|Phone state" | head -10
               echo "---- players (the AI's voice: its usage and state)"
-')\|u/pid:[0-9]*/" | tail -6
               adb shell dumpsys audio | grep -E "ID:[0-9]+ -- type:" | tail -8
               echo "---- output threads with an active track"
               adb shell dumpsys media.audio_flinger | grep -E "Output devices|Standby: no|^  [0-9]+ Tracks" | head -12
