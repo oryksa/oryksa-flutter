@@ -55,7 +55,7 @@ class DemoApp extends StatelessWidget {
         // With these the bubble and the chat follow the language of the phone.
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         supportedLocales: const [Locale('en'), Locale('pt'), Locale('pt', 'BR'), Locale('es')],
-        home: screen.isEmpty ? const Shell() : const ChatScreen(),
+        home: screen.isEmpty ? const Shell() : (screen == 'say' ? const SayScreen() : const ChatScreen()),
       );
 }
 
@@ -187,6 +187,43 @@ class _ChatScreenState extends State<ChatScreen> {
               items: ['Sky Beginner Snowboard'],
             ),
           ),
+        ),
+      );
+}
+
+
+/// Only for the CI audio route check (`say`): the AI's voice says one sentence, so the
+/// emulator can show where Android plays it (the CI emulator has no microphone).
+class SayScreen extends StatefulWidget {
+  const SayScreen({super.key});
+
+  @override
+  State<SayScreen> createState() => _SayScreenState();
+}
+
+class _SayScreenState extends State<SayScreen> {
+  late final voice = OryksaVoiceController(client: OryksaClient(getToken: fetchSessionToken), lang: 'pt');
+
+  @override
+  void initState() {
+    super.initState();
+    () async {
+      await voice.start();
+      await voice.say('Olá! Isto é um teste do altifalante da voz no Android. Estás a ouvir-me bem alto e claro?');
+    }();
+  }
+
+  @override
+  void dispose() {
+    voice.close();
+    voice.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        body: Center(
+          child: AnimatedBuilder(animation: voice, builder: (_, __) => Text('voice: ${voice.phase.name}')),
         ),
       );
 }

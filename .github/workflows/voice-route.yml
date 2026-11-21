@@ -23,7 +23,7 @@ jobs:
         env: { ORYKSA_TEST_TOKEN: "${{ secrets.ORYKSA_TEST_TOKEN }}" }
         run: |
           set -e
-          D="--dart-define=ORYKSA_TEST_TOKEN=$ORYKSA_TEST_TOKEN --dart-define=ORYKSA_SCREEN=voice --dart-define=ORYKSA_LANG=pt"
+          D="--dart-define=ORYKSA_TEST_TOKEN=$ORYKSA_TEST_TOKEN --dart-define=ORYKSA_SCREEN=say --dart-define=ORYKSA_LANG=pt"
           flutter build apk --debug $D
           cp build/app/outputs/flutter-apk/app-debug.apk /tmp/after.apk
           cp ../lib/src/voice.dart /tmp/voice_after.dart
@@ -49,15 +49,18 @@ jobs:
             adb install -r /tmp/$v.apk
             adb shell pm grant $P android.permission.RECORD_AUDIO
             adb shell monkey -p $P -c android.intent.category.LAUNCHER 1
-            sleep 12
+            sleep 9
             adb exec-out screencap -p > route/$v-1.png
             {
               echo "================ $v ================"
               adb shell dumpsys audio | grep -iE "mode \(|audio mode|^ *mode:|mMode|communication|speakerphone|SCO" | head -40
               echo "---- audio policy"
               adb shell dumpsys media.audio_policy | grep -iE "force use|for_communication|Phone state" | head -10
-              echo "---- tracks"
-              adb shell dumpsys media.audio_flinger | grep -iE "Output device|usage|AUDIO_USAGE|Standby" | head -20
+              echo "---- players (the AI's voice: its usage and state)"
+')\|u/pid:[0-9]*/" | tail -6
+              adb shell dumpsys audio | grep -E "ID:[0-9]+ -- type:" | tail -8
+              echo "---- output threads with an active track"
+              adb shell dumpsys media.audio_flinger | grep -E "Output devices|Standby: no|^  [0-9]+ Tracks" | head -12
             } >> route/route.txt 2>&1
             sleep 8
             adb exec-out screencap -p > route/$v-2.png

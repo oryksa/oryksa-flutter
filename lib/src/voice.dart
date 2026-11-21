@@ -134,6 +134,9 @@ class OryksaVoiceController extends ChangeNotifier {
   /// Last thing the AI said (shown under the title while she speaks).
   String lastReply = '';
 
+  /// What she said out loud last (the short spoken version of [lastReply]).
+  String lastSpoken = '';
+
   /// Last thing the customer said.
   String lastHeard = '';
 
@@ -470,6 +473,7 @@ class OryksaVoiceController extends ChangeNotifier {
         return;
       }
       lastReply = own;
+      lastSpoken = own;
       onReply?.call(own);
       await _speak(own, my);
       return;
@@ -491,13 +495,18 @@ class OryksaVoiceController extends ChangeNotifier {
       return;
     }
     lastReply = reply;
+    lastSpoken = (r?.speech ?? '').trim().isNotEmpty ? r!.speech!.trim() : reply;
     onReply?.call(reply);
-    await _speak((r?.speech ?? '').trim().isNotEmpty ? r!.speech!.trim() : reply, my);
+    await _speak(lastSpoken, my);
   }
 
   /// Speaks [text] with the AI's voice. Used for the answers, and by your app for
   /// a greeting. If the voice fails she stays silent (the text is in the chat).
-  Future<void> say(String text) => _speak(text, ++_turn);
+  Future<void> say(String text) {
+    lastReply = text;
+    lastSpoken = text;
+    return _speak(text, ++_turn);
+  }
 
   Future<void> _speak(String text, int my) async {
     _beforeCut.clear();

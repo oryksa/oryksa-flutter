@@ -117,6 +117,24 @@ class OryksaClient {
   /// Name, photo, greeting and suggestions of the AI employee.
   Future<OryksaAgent> agent() async => OryksaAgent.fromJson(await _req('GET', '/client/agent'));
 
+  final Map<String, OryksaLinkPreview> _previews = {};
+
+  /// Title and picture of a link the AI gave, for the card under her reply. Only the pages
+  /// of the business's own site (its website chat domains) get a title and a picture.
+  /// Null when it cannot be read; never throws.
+  Future<OryksaLinkPreview?> linkPreview(String url) async {
+    final hit = _previews[url];
+    if (hit != null) return hit;
+    try {
+      final p = OryksaLinkPreview.fromJson(await _req('GET', '/client/link-preview?url=${Uri.encodeQueryComponent(url)}'));
+      if (_previews.length > 200) _previews.clear();
+      _previews[url] = p;
+      return p;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Sends a message ([image]: a photo from the customer, the AI looks at it). The status is
   /// `pending` when the AI needs a few more seconds:
   /// use [sendAndWait] to wait for the text.

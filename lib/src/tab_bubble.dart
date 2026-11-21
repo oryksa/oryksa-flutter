@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'chat.dart';
 import 'client.dart';
+import 'links.dart';
 import 'models.dart';
 
 /// The round button with the photo of the AI for the middle of a bottom tab bar,
@@ -23,6 +24,7 @@ class OryksaTabBubble extends StatefulWidget {
     this.appContext,
     this.voice = true,
     this.onPickImage,
+    this.onLink,
     this.size = 64,
     this.unread = false,
     this.showLabel = false,
@@ -52,6 +54,10 @@ class OryksaTabBubble extends StatefulWidget {
   /// Shows a photo button in the chat. Return the photo the customer picked (for example
   /// with the `image_picker` package), or null when they cancel. The AI looks at the photo.
   final Future<OryksaImage?> Function()? onPickImage;
+
+  /// What your app does with a link the AI gave (see [OryksaLinkHandler]), for example
+  /// your own product screen for the links of your site.
+  final OryksaLinkHandler? onLink;
 
   /// Diameter of the bubble with its ring, in dp (64 by default, 48 at least).
   final double size;
@@ -146,6 +152,7 @@ class _OryksaTabBubbleState extends State<OryksaTabBubble> {
           appContext: widget.appContext,
           voice: widget.voice,
           onPickImage: widget.onPickImage,
+          onLink: widget.onLink,
           startInVoice: widget.voice && (a?.openMode ?? 'voice') == 'voice');
     } finally {
       _opening = false;
@@ -321,6 +328,7 @@ class OryksaBottomBar extends StatelessWidget {
     this.appContext,
     this.voice = true,
     this.onPickImage,
+    this.onLink,
     this.unread = false,
     this.onBubbleOpen,
     this.onBubbleTap,
@@ -361,6 +369,10 @@ class OryksaBottomBar extends StatelessWidget {
   /// Shows a photo button in the chat. Return the photo the customer picked (for example
   /// with the `image_picker` package), or null when they cancel. The AI looks at the photo.
   final Future<OryksaImage?> Function()? onPickImage;
+
+  /// What your app does with a link the AI gave (see [OryksaLinkHandler]), for example
+  /// your own product screen for the links of your site.
+  final OryksaLinkHandler? onLink;
 
   /// Shows the unread dot on the bubble (see [OryksaTabBubble.unread]).
   final bool unread;
@@ -479,6 +491,7 @@ class OryksaBottomBar extends StatelessWidget {
           appContext: appContext,
           voice: voice,
           onPickImage: onPickImage,
+          onLink: onLink,
           size: bubbleSize,
           unread: unread,
           showLabel: showBubbleLabel,

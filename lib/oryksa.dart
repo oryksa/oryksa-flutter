@@ -21,6 +21,7 @@ export 'src/errors.dart';
 export 'src/models.dart';
 export 'src/client.dart';
 export 'src/chat.dart';
+export 'src/links.dart';
 export 'src/profanity.dart';
 export 'src/voice.dart';
 export 'src/voice_screen.dart';

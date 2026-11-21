@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'chat.dart' show OryksaChatTheme, oryksaLang;
+import 'links.dart';
 import 'models.dart';
 import 'voice.dart';
 
 const Map<String, Map<String, String>> _vx = {
   'en': {
+    'open': 'Open',
     'typeEmail': 'Type your email',
     'typePhone': 'Type your phone number',
     'typeName': 'Type your name',
@@ -29,6 +31,7 @@ const Map<String, Map<String, String>> _vx = {
     'close': 'Close',
   },
   'pt': {
+    'open': 'Abrir',
     'typeEmail': 'Escreve o teu email',
     'typePhone': 'Escreve o teu telefone',
     'typeName': 'Escreve o teu nome',
@@ -52,6 +55,7 @@ const Map<String, Map<String, String>> _vx = {
     'close': 'Fechar',
   },
   'br': {
+    'open': 'Abrir',
     'typeEmail': 'Digite seu e-mail',
     'typePhone': 'Digite seu telefone',
     'typeName': 'Digite seu nome',
@@ -75,6 +79,7 @@ const Map<String, Map<String, String>> _vx = {
     'close': 'Fechar',
   },
   'es': {
+    'open': 'Abrir',
     'typeEmail': 'Escribe tu email',
     'typePhone': 'Escribe tu teléfono',
     'typeName': 'Escribe tu nombre',
@@ -114,7 +119,12 @@ class OryksaVoiceScreen extends StatefulWidget {
     required this.agent,
     this.lang = 'en',
     this.theme = const OryksaChatTheme(),
+    this.onLink,
   });
+
+  /// What your app does with a link the AI gave (see [OryksaLinkHandler]). The links of
+  /// her answer show as cards with an Open button; tapping one closes the voice screen.
+  final OryksaLinkHandler? onLink;
 
   /// Voice controller.
   final OryksaVoiceController controller;
@@ -172,7 +182,8 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
         // Never the words the person said on screen: only "listening" in the interface language; her answer shows as text.
         return (t['listening']!, t['thinking']!);
       case OryksaVoicePhase.speaking:
-        return (widget.agent.name, c.lastReply);
+        // What she says out loud, without the addresses: the links are the cards below (owner 2026-11-21).
+        return (widget.agent.name, oryksaWithoutLinks(c.lastSpoken.isNotEmpty ? c.lastSpoken : c.lastReply));
       case OryksaVoicePhase.muted:
         return (t['muted']!, t['mutedSub']!);
       case OryksaVoicePhase.micError:
@@ -226,7 +237,24 @@ class _OryksaVoiceScreenState extends State<OryksaVoiceScreen> with SingleTicker
                     const SizedBox(height: 14),
                     Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: th.ink)),
                     const SizedBox(height: 8),
-                    Text(sub, textAlign: TextAlign.center, style: TextStyle(fontSize: 13.5, height: 1.5, color: th.muted)),
+                    Text(sub, textAlign: TextAlign.center, maxLines: 7, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13.5, height: 1.5, color: th.muted)),
+                    for (final u in oryksaLinksIn(c.lastReply))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: OryksaLinkCard(
+                          url: u,
+                          client: c.client,
+                          openLabel: t['open']!,
+                          onLink: widget.onLink,
+                          onOpened: () => Navigator.of(context).maybePop(),
+                          accent: th.accent,
+                          ink: th.ink,
+                          muted: th.muted,
+                          background: th.background,
+                          line: th.line,
+                        ),
+                      ),
                     const SizedBox(height: 10),
                     if (c.phase == OryksaVoicePhase.hearing)
                       Text(t['tapToSend']!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11.5, color: Color(0xFFAAB0CC))),

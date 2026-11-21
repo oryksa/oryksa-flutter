@@ -199,3 +199,33 @@ class OryksaImage {
   /// `image/jpeg`, `image/png` or `image/webp`.
   final String mime;
 }
+
+/// Title and picture of a link of the business's own site ([OryksaClient.linkPreview]).
+class OryksaLinkPreview {
+  /// Creates a preview.
+  const OryksaLinkPreview({required this.url, this.title = '', this.image = '', this.site = '', this.price = ''});
+
+  /// Reads a `link_preview` object.
+  factory OryksaLinkPreview.fromJson(Map<String, dynamic> j) => OryksaLinkPreview(
+        url: (j['url'] ?? '').toString(),
+        title: (j['title'] ?? '').toString(),
+        image: (j['image'] ?? '').toString(),
+        site: (j['site'] ?? '').toString(),
+        price: (j['price'] ?? '').toString(),
+      );
+
+  /// The link.
+  final String url;
+
+  /// Title of the page (empty for other sites).
+  final String title;
+
+  /// Picture of the page (empty when it has none).
+  final String image;
+
+  /// Name of the site.
+  final String site;
+
+  /// Price, when the page says it (shops).
+  final String price;
+}
