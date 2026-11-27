@@ -11,7 +11,7 @@ import 'errors.dart';
 ///
 /// ⚠️ Has to match `version:` in pubspec.yaml. It said 1.2.1 while pub.dev served
 /// 1.2.2, so every 1.2.2 install reported itself as 1.2.1 in the server logs.
-const String oryksaSdkVersion = '1.2.6';
+const String oryksaSdkVersion = '1.3.0';
 
 /// Default API base.
 const String oryksaDefaultBase = 'https://api.oryksa.com/v1';
@@ -90,6 +90,18 @@ Future<Uint8List> oryksaBytes(
   String path,
   Object body, {
   Duration timeout = const Duration(seconds: 60),
+}) async =>
+    (await oryksaBytesResponse(client, base, token, path, body, timeout: timeout)).bodyBytes;
+
+/// Like [oryksaBytes], but returns the whole response, so the caller can read its headers
+/// (for example `X-ORYKSA-Locale` and `X-ORYKSA-Voice-Rev` of the presenter's voice).
+Future<http.Response> oryksaBytesResponse(
+  http.Client client,
+  String base,
+  String token,
+  String path,
+  Object body, {
+  Duration timeout = const Duration(seconds: 60),
 }) async {
   final req = http.Request('POST', Uri.parse(base + path))
     ..headers['Authorization'] = 'Bearer $token'
@@ -97,7 +109,7 @@ Future<Uint8List> oryksaBytes(
     ..body = jsonEncode(body);
   final res = await _run(client, req, timeout);
   if (res.statusCode >= 400) _fail(res);
-  return res.bodyBytes;
+  return res;
 }
 
 /// POSTs one file as multipart (field `file`) and decodes the JSON answer.

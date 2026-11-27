@@ -60,7 +60,7 @@ class OryksaAgent {
   /// Same as [avatar].
   String get photo => avatar;
 
-  /// ElevenLabs voice chosen for the AI in ORYKSA (the server speaks with it).
+  /// The ORYKSA voice chosen for the AI in ORYKSA (the server speaks with it).
   final String? voice;
 
   /// Main language of the AI (`pt`, `en`, `es`...), from ORYKSA.
@@ -243,6 +243,22 @@ class OryksaLinkPreview {
 
   /// Price, when the page says it (shops).
   final String price;
+}
+
+/// Audio returned by an ORYKSA endpoint ([OryksaClient.requestAudio]): the bytes and the
+/// response headers.
+class OryksaAudio {
+  /// Creates an audio answer.
+  const OryksaAudio(this.bytes, {this.headers = const {}});
+
+  /// The audio bytes (MP3 for the AI's voice).
+  final Uint8List bytes;
+
+  /// Response headers, with lower-case names.
+  final Map<String, String> headers;
+
+  /// One header by name (any case), or null.
+  String? header(String name) => headers[name.toLowerCase()];
 }
 
 /// The answer of [OryksaClient.ai]: an AI task of your own app (read a photo, extract data,

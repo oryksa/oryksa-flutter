@@ -7,3 +7,6 @@ example/pubspec.lock
 
 # owner 20/11/2026: the README screenshots load from GitHub; they do not go in the package
 docs/
+
+# TV demo app (a test app for Android TV / Fire TV): stays in the repository, not in the package
+example_tv/

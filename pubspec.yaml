@@ -1,6 +1,6 @@
 name: oryksa
 description: Official Flutter SDK for ORYKSA AI Employees. The AI bubble for your tab bar, a ready in-app chat and voice (as in the ORYKSA app), and a client for the ORYKSA API v1.
-version: 1.2.6
+version: 1.3.0
 homepage: https://developer.oryksa.com
 repository: https://github.com/oryksa/oryksa-flutter
 issue_tracker: https://github.com/oryksa/oryksa-flutter/issues

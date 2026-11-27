@@ -16,16 +16,23 @@ import 'platform.dart';
 /// current one expires.
 class OryksaClient {
   /// Creates the client with a [token], a [getToken] callback, or both.
+  ///
+  /// [platform] is the device the app runs on, sent as `platform` with each request. Leave
+  /// it out on phones (`ios` / `android` are found automatically). On a TV pass the TV value,
+  /// for example `OryksaTvPlatform.fireTv.wire` (`package:oryksa/tv.dart`): a pure Dart
+  /// package cannot tell a Fire TV from an Android TV or a phone.
   OryksaClient({
     String? token,
     Future<String> Function()? getToken,
     String baseUrl = oryksaDefaultBase,
     http.Client? httpClient,
     this.timeout = const Duration(seconds: 60),
+    String? platform,
   })  : _token = token,
         _getToken = getToken,
         _base = baseUrl.replaceAll(RegExp(r'/$'), ''),
-        _http = httpClient ?? http.Client() {
+        _http = httpClient ?? http.Client(),
+        platform = (platform == null || platform.isEmpty) ? oryksaPlatform : platform {
     if (token == null && getToken == null) {
       throw ArgumentError('OryksaClient needs a token or getToken.');
     }
@@ -42,6 +49,10 @@ class OryksaClient {
   ///
   /// When the business limits the chat to its own domains, use [OryksaClient.new] with a
   /// token from your server instead.
+  ///
+  /// [platform]: as in [OryksaClient.new]. [appId]: the Android package or the Apple bundle
+  /// id of your app, sent as `app_id` so the business can allow your app when it limits the
+  /// chat (a filter only: the strong protection is a token from your own server).
   factory OryksaClient.public({
     required String chatToken,
     String? conversationId,
@@ -49,6 +60,8 @@ class OryksaClient {
     String baseUrl = oryksaDefaultBase,
     http.Client? httpClient,
     Duration timeout = const Duration(seconds: 60),
+    String? platform,
+    String? appId,
   }) {
     final base = baseUrl.replaceAll(RegExp(r'/$'), '');
     final hc = httpClient ?? http.Client();
@@ -61,6 +74,8 @@ class OryksaClient {
                 'widget_token': chatToken,
                 'conversation_id': conv,
                 if (customerName != null && customerName.isNotEmpty) 'customer_name': customerName,
+                if (platform != null && platform.isNotEmpty) 'platform': platform,
+                if (appId != null && appId.isNotEmpty) 'app_id': appId,
               }))
           .timeout(timeout);
       Map<String, dynamic> j = const {};
@@ -76,7 +91,7 @@ class OryksaClient {
       return t;
     }
 
-    return OryksaClient(getToken: fetch, baseUrl: base, httpClient: hc, timeout: timeout);
+    return OryksaClient(getToken: fetch, baseUrl: base, httpClient: hc, timeout: timeout, platform: platform);
   }
 
   static String _randomId() {
@@ -91,6 +106,10 @@ class OryksaClient {
 
   /// Time limit for each request.
   final Duration timeout;
+
+  /// The device sent as `platform` (`ios`, `android`, `flutter`, or the TV value given to
+  /// the constructor, for example `fire_tv`).
+  final String platform;
 
   Future<String> _tok(bool force) async {
     if ((_token == null || force) && _getToken != null) {
@@ -116,6 +135,27 @@ class OryksaClient {
 
   /// Name, photo, greeting and suggestions of the AI employee.
   Future<OryksaAgent> agent() async => OryksaAgent.fromJson(await _req('GET', '/client/agent'));
+
+  /// Low-level call to an endpoint of the ORYKSA API with this session token (renewed when
+  /// it expires), for endpoints this class does not wrap. `package:oryksa/tv.dart` uses it.
+  /// Throws [OryksaException] on errors.
+  Future<Map<String, dynamic>> request(String method, String path, [Object? body]) => _req(method, path, body);
+
+  /// Like [request] for a POST that answers with audio: the bytes and the response headers.
+  /// Throws [OryksaException] on errors (unlike [tts], which returns null).
+  Future<OryksaAudio> requestAudio(String path, Object body) async {
+    Future<OryksaAudio> run(bool force) async {
+      final r = await oryksaBytesResponse(_http, _base, await _tok(force), path, body, timeout: timeout);
+      return OryksaAudio(r.bodyBytes, headers: {for (final e in r.headers.entries) e.key.toLowerCase(): e.value});
+    }
+
+    try {
+      return await run(false);
+    } on OryksaException catch (e) {
+      if ((e.code == 'session_expired' || e.status == 401) && _getToken != null) return run(true);
+      rethrow;
+    }
+  }
 
   final Map<String, OryksaLinkPreview> _previews = {};
 
@@ -171,7 +211,7 @@ class OryksaClient {
       if (schema != null) 'schema': schema,
       if (maxTokens != null) 'max_tokens': maxTokens,
       if (temperature != null) 'temperature': temperature,
-      'platform': oryksaPlatform,
+      'platform': platform,
     }));
   }
 
@@ -200,7 +240,7 @@ class OryksaClient {
         'message': message,
         // O aparelho vai em TODOS os pedidos, nao so nos que levam numeros da voz:
         // e com ele que o aviso de lead do dono diz "na tua app (iPhone)" ou "(Android)".
-        'platform': oryksaPlatform,
+        'platform': platform,
         if (image != null) ...{'image_base64': base64Encode(image.bytes), 'image_mime': image.mime},
         if (file != null) ...{'file_base64': base64Encode(file.bytes), 'file_name': file.name, 'file_mime': file.mime},
         if (lang != null && lang.isNotEmpty) 'lang': lang,
@@ -247,7 +287,7 @@ class OryksaClient {
     return r;
   }
 
-  /// The AI's voice (ElevenLabs, the voice chosen in ORYKSA) for one reply of this
+  /// The AI's voice (the ORYKSA voice chosen in ORYKSA) for one reply of this
   /// conversation, as MP3 bytes. Returns null when the voice is not available: then
   /// show the text only (never a robot voice).
   Future<Uint8List?> tts(String text, {bool whisper = false}) async {
@@ -292,7 +332,7 @@ class OryksaClient {
   /// Reports a voice turn that produced no message (nothing heard, a cut with nothing said).
   Future<void> voiceStats(Map<String, dynamic> stats) async {
     try {
-      await _req('POST', '/client/voice-stats', {'platform': oryksaPlatform, 'voice_stats': stats});
+      await _req('POST', '/client/voice-stats', {'platform': platform, 'voice_stats': stats});
     } catch (_) {}
   }
 

@@ -128,6 +128,54 @@ if (r.json?['readable'] == true) showProductsFor(r.json!['size'] as String);
 
 `r.text` has the answer as text, `r.json` the object (with a schema), `r.interactionsSpent` the interactions used. When the plan's interactions are used up the call throws `OryksaException` with status 402.
 
+## TV apps: `package:oryksa/tv.dart` (Android TV, Google TV, Fire TV)
+
+What the AI does for any TV app, driven only by the remote (arrows, OK, Back), with big letters and a focus you can see from the sofa. Native Flutter widgets, no web view. The texts, voices, rules and buttons come from your ORYKSA account.
+
+* **Presenter**: the AI speaks on screen with a native voice in the viewer's language and big subtitles. Lines she already said play again from the device, with no new voice made, and are charged again each time she says them.
+* **Assistant panel**: a conversation with the AI for the remote.
+* **Phone voice**: many TVs give no microphone to apps (the Fire TV Stick does not). The TV shows a QR code, the phone opens the ORYKSA page, and what the person says arrives in your app as text.
+* **`client.ai`** for your own tasks, for example moderating or classifying.
+
+```dart
+import 'package:oryksa/tv.dart';
+
+// A pure Dart package cannot tell a Fire TV from an Android TV: your app says which one it is.
+final client = OryksaClient(getToken: tokenFromYourServer, platform: OryksaTvPlatform.fireTv.wire);
+final tv = OryksaTv(client: client, locale: 'pt-BR');
+
+// The presenter: put OryksaPresenterView over your screen.
+Stack(children: [yourScreen, OryksaPresenterView(tv: tv)]);
+await tv.presenter.say('Welcome! I am your host tonight.');
+await tv.presenter.sayGenerated(instructions: 'Announce the next round in one short sentence.', input: 'Round 2');
+// Subtitles only, no sound (charged at the text price; a spoken line is charged at the voice price).
+await tv.presenter.say('The theme tonight: travel.', voice: false);
+
+// The assistant panel (Back closes it and the focus goes back where it was).
+showOryksaTvAssistant(context, tv: tv);
+
+// The phone as the microphone.
+tv.phoneVoice.texts.listen((text) => onViewerSaid(text));
+showDialog(context: context, builder: (_) => Dialog(child: OryksaPairingCard(tv: tv)));
+```
+
+* **Without a server of your own**: `OryksaClient.public(chatToken: ..., conversationId: ..., platform: OryksaTvPlatform.fireTv.wire, appId: 'your.package.name')` opens a public session with your business's public chat token. When your business limits its chat, it must list your package in its allowed apps. `appId` is a filter, not strong protection (it can be imitated): the strong protection is a token from your own server (`POST /v1/sessions`).
+* **Languages**: the ORYKSA server picks the voice and the texts for the locale. There are native voices for pt-BR, pt-PT, es-ES, es-419, fr-FR, de-DE, en-US and en-GB, and any other language uses the US English voice.
+* **Interactions**: each presenter line is charged by the ORYKSA interaction cost table every time she says it or shows it (per piece of up to 600 characters), a repeated line and a subtitles-only line too: a spoken line at the voice price, a subtitles-only line at the text price. The exact number comes in the `X-ORYKSA-Interactions-Spent` header, and a line the server did not count is not shown. Each text heard on the phone, each chat reply and each `client.ai` answer are charged too.
+* **While she speaks**, OK and Back on the remote stop her (`remoteSkips: false` turns that off). Use `tv.presenter.onStart` and `onEnd` to lower your music or video.
+* **TV microphone**: `OryksaTvMic.isAvailable()` tells whether the device lists an audio input. The SDK never asks for the permission on a TV without one.
+* **AndroidManifest**: declare the microphone, the touchscreen and leanback as not required, so the stores do not hide your app on TVs without them, and add the TV launcher category with a banner. See `example_tv/` in the repository.
+
+```xml
+<uses-feature android:name="android.hardware.microphone" android:required="false"/>
+<uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
+<uses-feature android:name="android.software.leanback" android:required="false"/>
+<!-- in the activity's intent-filter -->
+<category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+```
+
+For tests and demos, `OryksaTv.withBackend(OryksaTvFakeBackend())` runs everything without the server. It is simulated, so it proves nothing about your ORYKSA account.
+
 ## How it works (and why the key stays safe)
 
 1. Your **server** keeps the secret API key (`oryk_live_...`, created at developer.oryksa.com) and creates a short-lived **session token** for each signed-in user with `POST /v1/sessions`.

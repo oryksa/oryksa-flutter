@@ -1,3 +1,42 @@
+## 1.3.0
+
+* **ORYKSA for TV apps: `package:oryksa/tv.dart`** (Android TV, Google TV, Fire TV with Fire OS). Only what the AI
+  does for every TV app, driven only by the remote (arrows, OK, Back):
+  * `OryksaPresenter` + `OryksaPresenterView`: the AI speaks with a native voice for the locale (from the server,
+    never in the code) and big subtitles. Every line is charged by the ORYKSA interaction cost table each time she
+    says it or shows it (per piece of up to 600 characters), a repeated line too: a spoken line at the voice price,
+    a subtitles-only line at the text price. The exact number comes in the `X-ORYKSA-Interactions-Spent` header, and
+    the line appears only once the server has counted it; a line not counted (no interactions left, no network) is
+    not shown. Lines already said are kept on the device and sent with `cached: true` and their `voice_rev`, so the
+    server can charge them without making the voice again. With no voice for the locale she shows the subtitles
+    only, never a robot voice. OK and Back on the remote stop her. Server route: `POST /v1/client/tts` with
+    `locale` and `purpose: "presenter"`. `say(text, voice: false)` shows the subtitles only, at reading speed, with
+    no sound, and is charged at the text price (`voice: false` in the request).
+  * `OryksaTvAssistant` + `showOryksaTvAssistant`: a conversation with the AI for the remote, with a focus ring and
+    buttons in one row. Questions, buttons, texts and rules come from `GET /v1/client/agent?locale=` (block `tv`).
+    Typing uses the system keyboard, and only the Send button sends (closing the Fire TV keyboard with Back used to
+    send the message). What a screen reader says around the typing dialog is the server's `close` text, never a
+    built-in English word, and the dialog frees its text field only once it is gone (with a screen reader on, its
+    closing animation used a freed field).
+  * `OryksaPhoneVoice` + `OryksaPairingCard`: the phone as the microphone. The TV shows a QR code and a code, the
+    phone opens the ORYKSA page, and what the person says arrives as text (`POST /v1/client/tv/pair`, long-poll of
+    `.../events`, `DELETE`). With the QR card closed, the assistant panel shows where the phone stands (connected,
+    listening, the phone left) with the server's texts in the chosen language, as on Android.
+  * `OryksaTvMic.isAvailable()`: whether the TV lists an audio input. It never asks for the permission.
+  * `OryksaTvBackend`: the pieces run on the ORYKSA API (`OryksaTvClientBackend`) or on a simulated backend for tests
+    and demos (`OryksaTvFakeBackend`).
+* **`OryksaClient(platform: ...)`**: the device sent as `platform` (`fire_tv`, `android_tv`...). Without it nothing
+  changes. `OryksaClient.public(..., platform:, appId:)` sends both to `POST /public/sessions`. The new
+  `request()` and `requestAudio()` call endpoints the client does not wrap.
+* Proven on a Fire TV Stick (AFTSS, Fire OS 7.7.1.7) against the real server: the presenter in pt-BR (pt-BR voice)
+  and in it-IT (en-US voice), the voice kept on the device playing again, Back stopping her, the assistant with a
+  real reply, the keyboard, and the real QR with the phone page connected. Not proven there: the charging of every
+  line, a repeated one and a subtitles-only one too (proven against the real server, not on the TV yet), the
+  physical remote (the keys were sent by adb), the voice coming from a real phone, and other TVs.
+* Tests: a live test against the real server (`test/tv_live_test.dart`) runs only with `ORYKSA_LIVE=1` and the
+  token of a test account from the environment (`ORYKSA_TV_TOKEN` or `ORYKSA_TV_TOKEN_FILE`); without it, it is
+  skipped and `flutter test` never calls the server.
+
 ## 1.2.6
 
 * **The AI doing what you want in your app: `client.ai(...)`.** An AI task of your own feature, from the app, with the

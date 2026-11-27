@@ -50,7 +50,7 @@ enum OryksaVoicePhase {
 /// * the beginning of the sentence that cut her is kept (the last second before);
 /// * 700 ms of silence closes a sentence, 15 s is the longest sentence;
 /// * a whisper gets a whispered, shorter answer;
-/// * her voice is the ElevenLabs voice chosen in ORYKSA. If it fails she stays
+/// * her voice is the ORYKSA voice chosen in ORYKSA. If it fails she stays
 ///   silent and the text is shown: never a robot voice.
 ///
 /// The decisions come from [Vad], the same engine as the ORYKSA app.

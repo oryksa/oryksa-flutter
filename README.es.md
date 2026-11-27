@@ -128,6 +128,54 @@ if (r.json?['readable'] == true) showProductsFor(r.json!['size'] as String);
 
 `r.text` trae la respuesta en texto, `r.json` el objeto (con schema) y `r.interactionsSpent` las interacciones usadas. Cuando se agotan las interacciones del plan, la llamada lanza `OryksaException` con el status 402.
 
+## Apps de TV: `package:oryksa/tv.dart` (Android TV, Google TV, Fire TV)
+
+Lo que la IA hace en cualquier app de TV, solo con el mando (flechas, OK y Atrás), con letra grande y un foco que se ve desde el sofá. Son widgets nativos de Flutter, sin web view. Los textos, las voces, las reglas y los botones vienen de tu cuenta ORYKSA.
+
+* **Presentadora**: la IA habla en pantalla con una voz nativa en el idioma de quien está mirando, con subtítulos grandes. Las frases que ya dijo vuelven a sonar desde el dispositivo, sin generar una voz nueva, y se cobran otra vez cada vez que las dice.
+* **Panel de asistente**: una conversación con la IA pensada para el mando.
+* **Voz por el móvil**: muchas TVs no dan micrófono a las apps (el Fire TV Stick no lo da). La TV muestra un código QR, el móvil abre la página de ORYKSA y lo que dice la persona llega a tu app como texto.
+* **`client.ai`** para tus propias tareas, por ejemplo moderar o clasificar.
+
+```dart
+import 'package:oryksa/tv.dart';
+
+// Un paquete solo de Dart no distingue un Fire TV de un Android TV: es tu app la que dice cuál es.
+final client = OryksaClient(getToken: tokenDeTuServidor, platform: OryksaTvPlatform.fireTv.wire);
+final tv = OryksaTv(client: client, locale: 'es-ES');
+
+// La presentadora: pon OryksaPresenterView encima de tu pantalla.
+Stack(children: [tuPantalla, OryksaPresenterView(tv: tv)]);
+await tv.presenter.say('¡Bienvenidos! Soy vuestra presentadora esta noche.');
+await tv.presenter.sayGenerated(instructions: 'Anuncia la próxima ronda en una frase corta.', input: 'Ronda 2');
+// Solo subtítulos, sin sonido (se cobra al precio de texto; una frase con voz se cobra al precio de voz).
+await tv.presenter.say('El tema de esta noche: viajes.', voice: false);
+
+// El panel de asistente (Atrás lo cierra y el foco vuelve adonde estaba).
+showOryksaTvAssistant(context, tv: tv);
+
+// El móvil como micrófono.
+tv.phoneVoice.texts.listen((texto) => cuandoElEspectadorDijo(texto));
+showDialog(context: context, builder: (_) => Dialog(child: OryksaPairingCard(tv: tv)));
+```
+
+* **Sin servidor propio**: `OryksaClient.public(chatToken: ..., conversationId: ..., platform: OryksaTvPlatform.fireTv.wire, appId: 'tu.package')` abre una sesión pública con el token público del chat de tu negocio. Cuando tu negocio limita el chat, debe poner tu package en la lista de apps permitidas. `appId` es un filtro, no una seguridad fuerte (se puede imitar): la seguridad fuerte es que el token venga de tu propio servidor (`POST /v1/sessions`).
+* **Idiomas**: el servidor de ORYKSA elige la voz y los textos para el locale. Hay voces nativas para pt-BR, pt-PT, es-ES, es-419, fr-FR, de-DE, en-US y en-GB, y los demás idiomas usan la voz de inglés de EE. UU.
+* **Interacciones**: cada frase de la presentadora se cobra según la tabla de costes de interacción de ORYKSA cada vez que la dice o la muestra (por cada trozo de hasta 600 caracteres), también la frase repetida y la frase solo con subtítulos: la frase con voz al precio de voz y la frase solo con subtítulos al precio de texto. El número exacto viene en la cabecera `X-ORYKSA-Interactions-Spent`, y una frase que el servidor no contó no aparece. Cada texto oído en el móvil, cada respuesta del chat y cada respuesta de `client.ai` también se cobran.
+* **Mientras habla**, OK y Atrás en el mando la callan (`remoteSkips: false` lo desactiva). Usa `tv.presenter.onStart` y `onEnd` para bajar tu música o tu vídeo.
+* **Micrófono de la TV**: `OryksaTvMic.isAvailable()` dice si el dispositivo tiene una entrada de audio. El SDK nunca pide el permiso en una TV que no la tiene.
+* **AndroidManifest**: declara el micrófono, la pantalla táctil y leanback como no obligatorios, para que las tiendas no oculten tu app en las TVs que no los tienen, y añade la categoría del lanzador de TV con un banner. Mira `example_tv/` en el repositorio.
+
+```xml
+<uses-feature android:name="android.hardware.microphone" android:required="false"/>
+<uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
+<uses-feature android:name="android.software.leanback" android:required="false"/>
+<!-- en el intent-filter de la actividad -->
+<category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+```
+
+Para pruebas y demostraciones, `OryksaTv.withBackend(OryksaTvFakeBackend())` lo ejecuta todo sin el servidor. Es simulado, así que no demuestra nada sobre tu cuenta ORYKSA.
+
 ## Cómo funciona (y por qué la clave está segura)
 
 1. Tu **servidor** guarda la clave secreta de la API (`oryk_live_...`, creada en developer.oryksa.com) y crea un **token de sesión** de corta duración para cada usuario que ha iniciado sesión, con `POST /v1/sessions`.

@@ -1,0 +1,21 @@
+name: oryksa_tv_demo
+description: "ORYKSA TV SDK demo for Android TV, Google TV and Fire TV (SIMULATED backend unless a chat token is given)."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  oryksa:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

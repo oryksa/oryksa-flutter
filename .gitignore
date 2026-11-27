@@ -4,3 +4,4 @@ build/
 pubspec.lock
 example/pubspec.lock
 .flutter-plugins*
+example_tv/pubspec.lock
