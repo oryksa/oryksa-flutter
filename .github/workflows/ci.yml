@@ -10,6 +10,11 @@ jobs:
       - uses: subosito/flutter-action@v2
         with: { channel: stable }
       - run: flutter pub get
+      # The TV demo is a package of its own (oryksa_tv_demo): flutter pub get at the root does not get it
+      # (only example/), and its test imports it by name.
+      - name: TV demo packages
+        working-directory: example_tv
+        run: flutter pub get
       - run: dart analyze
       - name: Voice engine (24 audio tests with real recordings), voice client and API tests
         run: flutter test
